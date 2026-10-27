@@ -21,11 +21,13 @@ export default function MyOrders({ params }: { params: Promise<{ slug: string }>
   const send = async (o: any) => { try { await auth.call(`/portal/orders/${o._id}/message`, { body: { text: msg[o._id] } }); setMsg({ ...msg, [o._id]: "" }); orders.reload(); } catch (e: any) { setErr(e.message); } };
   const exportData = async () => { const d = await auth.call("/portal/me/export"); const url = URL.createObjectURL(new Blob([JSON.stringify(d, null, 2)], { type: "application/json" })); const a = document.createElement("a"); a.href = url; a.download = "my-data.json"; a.click(); };
 
+  const erasure = async () => { if (!confirm("Ask the pharmacy to erase your personal data? Records they must keep by law stay for the required period.")) return; try { const r = await auth.call("/portal/me/erasure-request", { body: {} }); alert(r.message); } catch (e: any) { setErr(e.message); } };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <ShopHeader shop={shop.data} slug={slug} right={<Link href={`/shop/${slug}`} className="text-sm font-medium text-teal-700">Continue shopping</Link>} />
       <main className="mx-auto max-w-3xl px-4 py-8">
-        <div className="mb-6 flex items-center justify-between"><h1 className="text-2xl font-bold">My orders</h1>{auth.token && <button onClick={exportData} className="text-sm text-slate-500 underline">Download my data</button>}</div>
+        <div className="mb-6 flex items-center justify-between"><h1 className="text-2xl font-bold">My orders</h1>{auth.token && <span className="space-x-4 text-sm text-slate-500"><button onClick={exportData} className="underline">Download my data</button><button onClick={erasure} className="underline">Erase my data</button></span>}</div>
         {!auth.ready ? <Spinner /> : !auth.token ? <p className="text-slate-600">Please <Link href={`/shop/${slug}`} className="text-teal-700 underline">sign in</Link> from the store page to see your orders.</p> : (
           <>
             <ErrorNote error={err || orders.error} />

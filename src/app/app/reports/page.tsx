@@ -9,7 +9,7 @@ import { Button, Card, ErrorNote, Input, PageHeader, Select, Spinner, Table, Td 
 const REPORTS: [string, string, boolean][] = [
   ["sales?by=day", "Sales by day", true], ["sales?by=product", "Sales by product", true], ["sales?by=category", "Sales by category", true], ["sales?by=cashier", "Sales by cashier", true], ["sales?by=branch", "Sales by branch", true],
   ["stock", "Stock on hand and ageing", false], ["expiry", "Expiry report (90 days)", false], ["margin", "Profit margin by product", true], ["tax", "Tax and financial summary", true],
-  ["purchases", "Purchases", false], ["supplier-balances", "Supplier balances", false], ["orders", "Online order and delivery performance", true], ["dispensing", "Prescription and dispensing", true],
+  ["purchases", "Purchases", false], ["supplier-balances", "Supplier balances", false], ["orders", "Online order and delivery performance", true], ["dispensing", "Prescription and dispensing", true], ["insurance-claims", "Insurance / scheme claims", true], ["payment-reconciliation", "Online payment reconciliation", true],
 ];
 const day = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 

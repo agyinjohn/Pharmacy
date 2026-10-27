@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { ApiError } from "@/lib/api";
 import { Button, ErrorNote, Input, Logo } from "@/components/ui";
 
 const DEMO = [
@@ -14,14 +15,15 @@ export default function Login() {
   const { login, user, ready } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
+  const [code, setCode] = useState(""); const [needCode, setNeedCode] = useState(false);
   const [error, setError] = useState<string | null>(null); const [busy, setBusy] = useState(false);
 
   useEffect(() => { if (ready && user) router.replace("/app"); }, [ready, user, router]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setError(null);
-    try { await login(email, password); router.replace("/app"); }
-    catch (err: any) { setError(err.message); } finally { setBusy(false); }
+    try { await login(email, password, code || undefined); router.replace("/app"); }
+    catch (err: any) { if (err instanceof ApiError && err.details?.needs2fa) { setNeedCode(true); setError(code ? err.message : null); } else setError(err.message); } finally { setBusy(false); }
   };
 
   return (
@@ -32,6 +34,7 @@ export default function Login() {
         <form onSubmit={submit} className="mt-8 max-w-sm space-y-4">
           <Input label="Email" type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
           <Input label="Password" type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          {needCode && <Input label="Authenticator code" inputMode="numeric" autoFocus autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} hint="6-digit code from your authenticator app" />}
           <ErrorNote error={error} />
           <Button type="submit" size="lg" loading={busy} className="w-full">Sign in</Button>
         </form>

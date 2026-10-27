@@ -8,12 +8,14 @@ import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinn
 
 export default function Purchasing() {
   const { call, can, branch } = useAuth();
-  const [tab, setTab] = useState<"po" | "suppliers">("po");
+  const [tab, setTab] = useState<"po" | "suppliers" | "returns">("po");
   const pos = useLoad(() => call("/purchase-orders"), [branch?._id], !!branch);
   const sups = useLoad(() => call("/suppliers"), []);
   const prods = useLoad(() => call("/products?limit=500"), []);
   const [form, setForm] = useState<any>(null); const [recv, setRecv] = useState<any>(null); const [sup, setSup] = useState<any>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [ret, setRet] = useState<any>(null); const [retBatches, setRetBatches] = useState<any[]>([]);
+  const rets = useLoad<any[]>(() => call("/supplier-returns"), [tab === "returns"], tab === "returns");
 
   const doAct = async (id: string, path: string, body?: any) => { setErr(null); try { await call(`/purchase-orders/${id}/${path}`, { body: body || {} }); pos.reload(); sups.reload(); setRecv(null); } catch (e: any) { setErr(e.message); alert(e.message); } };
   const create = async () => {
@@ -22,15 +24,19 @@ export default function Purchasing() {
     catch (e: any) { setErr(e.message); }
   };
   const saveSup = async () => { setErr(null); try { if (sup._id) await call(`/suppliers/${sup._id}`, { method: "PATCH", body: sup }); else await call("/suppliers", { body: sup }); setSup(null); sups.reload(); } catch (e: any) { setErr(e.message); } };
+  const openReturn = async (s: any) => { setErr(null); setRetBatches(await call("/inventory/batches")); setRet({ supplier: s._id, name: s.name, batch: "", qty: "", reason: "" }); };
+  const doReturn = async () => { setErr(null); try { await call("/supplier-returns", { body: { supplier: ret.supplier, reason: ret.reason, items: [{ batch: ret.batch, qty: Number(ret.qty) }] } }); setRet(null); sups.reload(); if (tab === "returns") rets.reload(); } catch (e: any) { setErr(e.message); } };
   const pay = async (s: any) => { const a = prompt(`Payment to ${s.name} (balance ${money(s.balance)})`); if (a) { try { await call(`/suppliers/${s._id}/payments`, { body: { amount: Number(a) } }); sups.reload(); } catch (e: any) { alert(e.message); } } };
 
   return (
     <div>
       <PageHeader title="Purchasing" subtitle="Purchase orders, goods received and supplier balances"
         actions={<>{can("store_officer", "branch_manager") && <Button onClick={() => { setForm({ supplier: "", items: [{ product: "", qty: "", cost: "" }] }); setErr(null); }}><Plus className="h-4 w-4" />New purchase order</Button>}{can("store_officer", "branch_manager", "accountant") && <Button variant="outline" onClick={() => { setSup({ name: "", contact: "", phone: "", licenseNumber: "", paymentTerms: "", creditLimit: 0 }); setErr(null); }}>Add supplier</Button>}</>} />
-      <div className="mb-4 flex gap-2"><Button size="sm" variant={tab === "po" ? "primary" : "outline"} onClick={() => setTab("po")}>Purchase orders</Button><Button size="sm" variant={tab === "suppliers" ? "primary" : "outline"} onClick={() => setTab("suppliers")}>Suppliers</Button></div>
+      <div className="mb-4 flex gap-2"><Button size="sm" variant={tab === "po" ? "primary" : "outline"} onClick={() => setTab("po")}>Purchase orders</Button><Button size="sm" variant={tab === "suppliers" ? "primary" : "outline"} onClick={() => setTab("suppliers")}>Suppliers</Button><Button size="sm" variant={tab === "returns" ? "primary" : "outline"} onClick={() => setTab("returns")}>Returns and credit notes</Button></div>
       <Card className="p-4">
-        {tab === "po" ? (pos.loading && !pos.data ? <Spinner /> : (
+        {tab === "returns" ? (
+          <Table head={["Credit note", "Supplier", "Items", "Reason", "Value", "Date"]} empty="No returns yet">{(rets.data || []).map((r: any) => <tr key={r._id}><Td className="font-mono text-xs">{r.creditNoteNo}</Td><Td>{r.supplier?.name}</Td><Td>{r.items.map((i: any) => `${i.name} (${i.batchNo}) ×${i.qty}`).join(", ")}</Td><Td>{r.reason}</Td><Td>{money(r.total)}</Td><Td>{dateFmt(r.createdAt)}</Td></tr>)}</Table>
+        ) : tab === "po" ? (pos.loading && !pos.data ? <Spinner /> : (
           <Table head={["PO", "Supplier", "Branch", "Lines", "Total", "Status", ""]} empty="No purchase orders">
             {(pos.data || []).map((p: any) => (
               <tr key={p._id}><Td className="font-mono text-xs">{p.poNo}</Td><Td>{p.supplier?.name}</Td><Td>{p.branch?.name}</Td><Td>{p.items.map((i: any) => `${i.name} ×${i.qty}`).join(", ")}</Td><Td className="tabular-nums">{money(p.total)}</Td><Td><StatusBadge s={p.status} /></Td>
@@ -47,7 +53,7 @@ export default function Purchasing() {
               <tr key={s._id}><Td className="font-medium">{s.name}<div className="text-xs text-slate-500">{s.phone}</div></Td><Td>{s.paymentTerms}</Td>
                 <Td>{s.licenseNumber} {s.licenseExpiry && (daysUntil(s.licenseExpiry)! < 60 ? <Badge tone="amber">expires {dateFmt(s.licenseExpiry)}</Badge> : <span className="text-xs text-slate-500">to {dateFmt(s.licenseExpiry)}</span>)}</Td>
                 <Td>{money(s.creditLimit)}</Td><Td className="tabular-nums font-medium">{money(s.balance)}</Td>
-                <Td className="whitespace-nowrap text-right">{can("accountant", "branch_manager") && <Button size="sm" variant="outline" onClick={() => pay(s)}>Record payment</Button>}</Td></tr>
+                <Td className="whitespace-nowrap text-right">{can("store_officer", "branch_manager") && <Button size="sm" variant="ghost" onClick={() => openReturn(s)}>Return goods</Button>}{can("accountant", "branch_manager") && <Button size="sm" variant="outline" onClick={() => pay(s)}>Record payment</Button>}</Td></tr>
             ))}
           </Table>
         )}
@@ -70,7 +76,7 @@ export default function Purchasing() {
 
       <Modal open={!!recv} onClose={() => setRecv(null)} title={`Receive ${recv?.po.poNo || ""}`} wide>
         {recv && <div className="space-y-3">
-          <Input label="Supplier invoice no." value={recv.invoiceNo} onChange={(e) => setRecv({ ...recv, invoiceNo: e.target.value })} />
+          <div className="grid gap-2 sm:grid-cols-2"><Input label="Supplier invoice no." value={recv.invoiceNo} onChange={(e) => setRecv({ ...recv, invoiceNo: e.target.value })} /><Input label="Invoice total (to check against PO)" type="number" value={recv.invoiceTotal || ""} onChange={(e) => setRecv({ ...recv, invoiceTotal: e.target.value })} /></div>
           {recv.lines.map((l: any, i: number) => (
             <div key={l.item} className="grid gap-2 sm:grid-cols-4"><div className="self-end pb-2 text-sm font-medium">{l.name}</div>
               <Input label="Qty" type="number" value={l.qty} onChange={(e) => setRecv({ ...recv, lines: recv.lines.map((x: any, k: number) => (k === i ? { ...x, qty: e.target.value } : x)) })} />
@@ -78,7 +84,16 @@ export default function Purchasing() {
               <Input label="Expiry" type="date" value={l.expiry} onChange={(e) => setRecv({ ...recv, lines: recv.lines.map((x: any, k: number) => (k === i ? { ...x, expiry: e.target.value } : x)) })} /></div>
           ))}
           <ErrorNote error={err} />
-          <Button className="w-full" onClick={() => doAct(recv.po._id, "receive", { invoiceNo: recv.invoiceNo, lines: recv.lines.filter((l: any) => Number(l.qty) > 0).map((l: any) => ({ ...l, qty: Number(l.qty) })) })}>Confirm receipt into stock</Button>
+          <Button className="w-full" onClick={() => doAct(recv.po._id, "receive", { invoiceNo: recv.invoiceNo, invoiceTotal: recv.invoiceTotal, lines: recv.lines.filter((l: any) => Number(l.qty) > 0).map((l: any) => ({ ...l, qty: Number(l.qty) })) })}>Confirm receipt into stock</Button>
+        </div>}
+      </Modal>
+
+      <Modal open={!!ret} onClose={() => setRet(null)} title={`Return goods to ${ret?.name || ""}`}>
+        {ret && <div className="space-y-3">
+          <Select label="Batch to return (this branch)" value={ret.batch} onChange={(e) => setRet({ ...ret, batch: e.target.value })}><option value="">Choose...</option>{retBatches.map((b) => <option key={b._id} value={b._id}>{b.product?.brand} · {b.batchNo} · qty {b.qty} · exp {dateFmt(b.expiry)}</option>)}</Select>
+          <Input label="Quantity" type="number" value={ret.qty} onChange={(e) => setRet({ ...ret, qty: e.target.value })} />
+          <Input label="Reason (damaged, near expiry, recall...)" value={ret.reason} onChange={(e) => setRet({ ...ret, reason: e.target.value })} />
+          <ErrorNote error={err} /><Button className="w-full" onClick={doReturn}>Return and issue credit note</Button>
         </div>}
       </Modal>
 

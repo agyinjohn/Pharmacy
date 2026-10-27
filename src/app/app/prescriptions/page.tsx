@@ -6,7 +6,7 @@ import { useLoad } from "@/lib/useLoad";
 import { ApiError, dateFmt, dateTime } from "@/lib/api";
 import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, StatusBadge, Table, Td, Textarea } from "@/components/ui";
 
-const emptyRx = { patientName: "", customer: "", prescriber: { name: "", regNo: "", facility: "", address: "" }, items: [{ product: "", dose: "", frequency: "", duration: "", qty: "" }], refillsAllowed: 0, paperOriginalSeen: false, image: "" };
+const emptyRx = { patientName: "", customer: "", prescriber: { name: "", regNo: "", facility: "", address: "" }, items: [{ product: "", dose: "", frequency: "", duration: "", qty: "" }], refillsAllowed: 0, paperOriginalSeen: false, image: "", insurance: { scheme: "", memberNo: "", copay: "" } };
 
 export default function Prescriptions() {
   const { call, user, can, branch } = useAuth();
@@ -19,6 +19,8 @@ export default function Prescriptions() {
   const products = useLoad(() => call("/products?limit=500"), [], !!form);
   const customers = useLoad(() => call("/customers"), [], !!form);
   const [note, setNote] = useState(""); const [reason, setReason] = useState("");
+  const [info, setInfo] = useState<string | null>(null);
+  const sendReminders = async () => { try { const r = await call("/refill-reminders/send", { body: {} }); setInfo(`Reminders sent: ${r.sent}. Skipped (no consent / opted out): ${r.skipped}.`); } catch (e: any) { setErr(e.message); } };
   const pharmacist = user?.role === "pharmacist" || user?.role === "owner";
 
   const load = async (id: string) => { setErr(null); setWarn(null); setOpen(await call(`/prescriptions/${id}`)); };
@@ -38,7 +40,7 @@ export default function Prescriptions() {
   const submit = async () => {
     setErr(null);
     try {
-      const body = { ...form, customer: form.customer || undefined, items: form.items.filter((i: any) => i.product).map((i: any) => ({ ...i, qty: Number(i.qty) })), refillsAllowed: Number(form.refillsAllowed) };
+      const body = { ...form, customer: form.customer || undefined, items: form.items.filter((i: any) => i.product).map((i: any) => ({ ...i, qty: Number(i.qty) })), refillsAllowed: Number(form.refillsAllowed), insurance: form.insurance.scheme ? { ...form.insurance, copay: Number(form.insurance.copay) || 0 } : undefined };
       await call("/prescriptions", { body }); setForm(null); list.reload();
     } catch (e: any) { setErr(e.message); }
   };
@@ -48,7 +50,8 @@ export default function Prescriptions() {
   return (
     <div>
       <PageHeader title="Prescriptions" subtitle="Capture, verify and dispense. Shared across branches so a prescription cannot be filled twice."
-        actions={can("pharmacist", "technician", "branch_manager", "cashier") && <Button onClick={() => { setForm(structuredClone(emptyRx)); setErr(null); }}><FilePlus2 className="h-4 w-4" />Capture prescription</Button>} />
+        actions={<>{can("pharmacist", "branch_manager") && <Button variant="outline" onClick={sendReminders}>Send refill reminders</Button>}{can("pharmacist", "technician", "branch_manager", "cashier") && <Button onClick={() => { setForm(structuredClone(emptyRx)); setErr(null); }}><FilePlus2 className="h-4 w-4" />Capture prescription</Button>}</>} />
+      {info && <div className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{info}</div>}
       <Card className="p-4">
         <div className="mb-4 flex gap-2 overflow-x-auto">
           {["", "pending", "verified", "partial", "dispensed", "rejected"].map((s) => <Button key={s} size="sm" variant={status === s ? "primary" : "outline"} onClick={() => setStatus(s)}>{s || "All"}</Button>)}
@@ -154,6 +157,11 @@ export default function Prescriptions() {
             <div className="grid gap-3 sm:grid-cols-2">
               <Input label="Refills allowed" type="number" min={0} value={form.refillsAllowed} onChange={(e) => setForm({ ...form, refillsAllowed: e.target.value })} hint="Not allowed for the strictest controlled class" />
               <label className="block text-sm"><span className="mb-1 block font-medium text-slate-700">Scan or photo of paper original</span><input type="file" accept="image/*,application/pdf" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} className="text-sm" /></label>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Input label="Insurance / scheme (optional)" value={form.insurance.scheme} onChange={(e) => setForm({ ...form, insurance: { ...form.insurance, scheme: e.target.value } })} />
+              <Input label="Member number" value={form.insurance.memberNo} onChange={(e) => setForm({ ...form, insurance: { ...form.insurance, memberNo: e.target.value } })} />
+              <Input label="Co-payment" type="number" value={form.insurance.copay} onChange={(e) => setForm({ ...form, insurance: { ...form.insurance, copay: e.target.value } })} />
             </div>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.paperOriginalSeen} onChange={(e) => setForm({ ...form, paperOriginalSeen: e.target.checked })} />Signed paper original has been sighted (required for controlled drugs)</label>
             <ErrorNote error={err} /><Button className="w-full" onClick={submit}>Save prescription</Button>

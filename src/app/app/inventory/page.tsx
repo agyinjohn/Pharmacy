@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { PackagePlus, Search, ShieldAlert } from "lucide-react";
+import { PackagePlus, Search, ShieldAlert, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
 import { dateFmt, daysUntil, money } from "@/lib/api";
@@ -14,8 +14,9 @@ export default function Inventory() {
   const [sel, setSel] = useState<any>(null); const [batches, setBatches] = useState<any[]>([]);
   const [recv, setRecv] = useState<any>(null); const [err, setErr] = useState<string | null>(null);
   const [adj, setAdj] = useState<any>(null); const [trace, setTrace] = useState<any>(null);
+  const [sug, setSug] = useState<any[] | null>(null); const [picked, setPicked] = useState<Record<string, boolean>>({}); const [defSup, setDefSup] = useState(""); const [done, setDone] = useState<string | null>(null);
   const products = useLoad(() => call("/products?limit=500"), [], !!recv);
-  const suppliers = useLoad(() => call("/suppliers").catch(() => []), [], !!recv);
+  const suppliers = useLoad(() => call("/suppliers").catch(() => []), [], !!recv || !!sug);
   const manage = can("store_officer", "branch_manager", "pharmacist", "technician");
 
   const openBatches = async (row: any) => { setSel(row); setBatches(await call(`/inventory/batches?product=${row.product._id}`)); };
@@ -34,11 +35,18 @@ export default function Inventory() {
   };
   const doTrace = async (b: any) => setTrace(await call(`/inventory/trace?product=${b.product._id || b.product}&batchNo=${encodeURIComponent(b.batchNo)}`));
 
+  const openSuggest = async () => { setErr(null); setDone(null); const r = await call("/inventory/reorder-suggestions"); setSug(r); setPicked(Object.fromEntries(r.map((x: any) => [x.product, true]))); };
+  const createPos = async () => {
+    setErr(null);
+    try { const r = await call("/purchase-orders/from-suggestions", { body: { items: sug!.filter((x) => picked[x.product]), fallbackSupplier: defSup || undefined } }); setDone(`Created ${r.length} draft purchase order(s). Approve them in Purchasing.`); setSug(null); }
+    catch (e: any) { setErr(e.message); }
+  };
   const a = alerts.data;
   return (
     <div>
       <PageHeader title="Inventory" subtitle={`${branch?.name} - stock by batch and expiry, first-expiry-first-out`}
-        actions={manage && <Button onClick={() => { setRecv({ product: "", batchNo: "", expiry: "", qty: "", cost: "" }); setErr(null); }}><PackagePlus className="h-4 w-4" />Receive stock</Button>} />
+        actions={manage && <><Button variant="outline" onClick={openSuggest}><Sparkles className="h-4 w-4" />Suggest reorder</Button><Button onClick={() => { setRecv({ product: "", batchNo: "", expiry: "", qty: "", cost: "" }); setErr(null); }}><PackagePlus className="h-4 w-4" />Receive stock</Button></>} />
+      {done && <div className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{done}</div>}
       {a && (
         <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
           <Stat label="Expiring ≤ 30d" value={a.expiring[30]} tone={a.expiring[30] ? "red" : undefined} />
@@ -98,6 +106,18 @@ export default function Inventory() {
           <Input label="Quantity" type="number" value={recv.qty} onChange={(e) => setRecv({ ...recv, qty: e.target.value })} />
           <Input label="Unit cost" type="number" value={recv.cost} onChange={(e) => setRecv({ ...recv, cost: e.target.value })} />
           <div className="sm:col-span-2 space-y-3"><ErrorNote error={err} /><Button className="w-full" onClick={receive}>Add to stock</Button></div>
+        </div>}
+      </Modal>
+
+      <Modal open={!!sug} onClose={() => setSug(null)} title="Suggested reorder (from last 30 days of sales)" wide>
+        {sug && <div className="space-y-3">
+          <p className="text-sm text-slate-600">Quantity covers about two weeks of sales plus the reorder level. Untick anything you do not want. One draft order is made per supplier.</p>
+          <Table head={["", "Product", "On hand", "Sold 30d", "Suggest", "Last supplier"]} empty="Nothing needs reordering">
+            {sug.map((x) => <tr key={x.product}><Td><input type="checkbox" checked={!!picked[x.product]} onChange={(e) => setPicked({ ...picked, [x.product]: e.target.checked })} /></Td><Td className="font-medium">{x.name}</Td><Td>{x.onHand}</Td><Td>{x.soldLast30}</Td>
+              <Td><input type="number" className="w-20 rounded border border-slate-300 px-2 py-1" value={x.suggestedQty} onChange={(e) => setSug(sug.map((y) => (y.product === x.product ? { ...y, suggestedQty: Number(e.target.value) } : y)))} /></Td><Td>{x.supplierName || <span className="text-amber-700">none</span>}</Td></tr>)}
+          </Table>
+          <Select label="Default supplier for items with none" value={defSup} onChange={(e) => setDefSup(e.target.value)}><option value="">-</option>{(suppliers.data || []).map((s: any) => <option key={s._id} value={s._id}>{s.name}</option>)}</Select>
+          <ErrorNote error={err} /><Button className="w-full" disabled={!sug.some((x) => picked[x.product])} onClick={createPos}>Create draft purchase orders</Button>
         </div>}
       </Modal>
 

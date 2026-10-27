@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, ShoppingCart, ClipboardCheck, Package, Boxes, Truck, ArrowLeftRight, ShieldAlert, Users, BarChart3,
-  Building2, UserCog, ScrollText, LogOut, Menu, X, Globe, Store, PackageCheck,
+  Building2, UserCog, ScrollText, LogOut, Menu, X, Globe, Store, PackageCheck, Settings as Cog,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Logo, Spinner, cn } from "@/components/ui";
@@ -26,17 +26,28 @@ const NAV: { href: string; label: string; icon: any; roles: string[] | "all" }[]
   { href: "/app/branches", label: "Branches", icon: Store, roles: ["branch_manager"] },
   { href: "/app/team", label: "Team", icon: UserCog, roles: ["branch_manager"] },
   { href: "/app/audit", label: "Audit log", icon: ScrollText, roles: ["branch_manager", "auditor"] },
+  { href: "/app/settings", label: "Settings", icon: Cog, roles: "all" },
 ];
 const HOME: Record<string, string> = { cashier: "/app/pos", technician: "/app/orders", dispatcher: "/app/rider" };
 const ROLE_LABEL: Record<string, string> = { owner: "Owner", branch_manager: "Branch manager", pharmacist: "Pharmacist", technician: "Technician", cashier: "Cashier", store_officer: "Store officer", accountant: "Accountant", dispatcher: "Rider", auditor: "Auditor (read-only)" };
 
 export default function Shell({ children }: { children: React.ReactNode }) {
-  const { ready, user, org, branches, branch, setBranchId, logout, can } = useAuth();
+  const { ready, user, org, branches, branch, setBranchId, logout, can, call } = useAuth();
   const router = useRouter(); const path = usePathname();
   const [open, setOpen] = useState(false);
+  const [alerts, setAlerts] = useState<any>(null);
 
   useEffect(() => { if (ready && !user) router.replace("/login"); }, [ready, user, router]);
   useEffect(() => setOpen(false), [path]);
+  // Staff alerts for new orders and orders waiting for pharmacist review (CP-NOT-03).
+  useEffect(() => {
+    if (!user || !branch || !can("pharmacist", "technician", "branch_manager")) return;
+    let live = true;
+    const tick = () => call("/orders/alerts").then((a) => live && setAlerts(a)).catch(() => {});
+    tick(); const t = setInterval(tick, 30000);
+    return () => { live = false; clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, branch?._id]);
 
   const items = NAV.filter((n) => n.roles === "all" || can(...(n.roles as string[])));
   // Land users with no dashboard access on their working screen.
@@ -61,6 +72,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           return (
             <Link key={href} href={href} className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium", active ? "bg-teal-700 text-white" : "text-slate-300 hover:bg-slate-800 hover:text-white")}>
               <Icon className="h-[18px] w-[18px]" />{label}
+              {href === "/app/orders" && alerts && alerts.pendingReview + alerts.awaitingApproval > 0 && <span className="ml-auto rounded-full bg-amber-500 px-2 text-xs font-semibold text-white">{alerts.pendingReview + alerts.awaitingApproval}</span>}
             </Link>
           );
         })}
