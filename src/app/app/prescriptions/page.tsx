@@ -1,7 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FilePlus2, Printer } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { useOffline } from "@/lib/offlineContext";
+import { loadRxSnapshot, newClientId, queueOp, saveRxSnapshot } from "@/lib/offline";
 import { useLoad } from "@/lib/useLoad";
 import { ApiError, dateFmt, dateTime } from "@/lib/api";
 import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, StatusBadge, Table, Td, Textarea } from "@/components/ui";
@@ -9,7 +11,21 @@ import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinn
 const emptyRx = { patientName: "", customer: "", prescriber: { name: "", regNo: "", facility: "", address: "" }, items: [{ product: "", dose: "", frequency: "", duration: "", qty: "" }], refillsAllowed: 0, paperOriginalSeen: false, image: "", insurance: { scheme: "", memberNo: "", copay: "" } };
 
 export default function Prescriptions() {
-  const { call, user, can, branch } = useAuth();
+  const { call, user, can, branch, org } = useAuth();
+  const { online, refresh: refreshQueue } = useOffline();
+  const [snap, setSnap] = useState<any>(null);
+  useEffect(() => { if (!online && org) loadRxSnapshot(org._id).then(setSnap).catch(() => setSnap(null)); }, [online, org]);
+  // Offline dispensing of a cached, verified prescription; synced later and flagged if it was filled elsewhere meanwhile.
+  const dispenseOffline = async (r: any) => {
+    if (!branch || !org) return;
+    const items = r.items.map((i: any) => ({ product: i.product, qty: Math.min(i.qty, i.max - i.dispensedQty) })).filter((i: any) => i.qty > 0);
+    if (!items.length) return;
+    if (!confirm(`Dispense ${r.rxNo} for ${r.patientName} while offline? It will be checked against other branches when the connection returns.`)) return;
+    await queueOp({ clientId: newClientId(), kind: "dispense", branch: branch._id, createdAt: new Date().toISOString(), payload: { prescription: r._id, items }, label: `${r.rxNo} ${r.patientName}`, status: "pending" });
+    const next = { ...snap, prescriptions: snap.prescriptions.map((x: any) => (x._id === r._id ? { ...x, items: x.items.map((i: any) => ({ ...i, dispensedQty: i.dispensedQty + (items.find((y: any) => y.product === i.product)?.qty || 0) })) } : x)) };
+    await saveRxSnapshot(org._id, snap.at, next.prescriptions); setSnap(next); refreshQueue();
+    setLabels(items.map((i: any) => { const line = r.items.find((x: any) => x.product === i.product); return { patient: r.patientName, drug: line.name, directions: [line.dose, line.frequency, line.duration].filter(Boolean).join(", "), qty: i.qty, batch: "(assigned on sync)", date: new Date(), rxNo: r.rxNo }; }));
+  };
   const [status, setStatus] = useState("");
   const list = useLoad(() => call(`/prescriptions${status ? `?status=${status}` : ""}`), [status, branch?._id]);
   const [open, setOpen] = useState<any>(null); const [err, setErr] = useState<string | null>(null);
@@ -52,6 +68,15 @@ export default function Prescriptions() {
       <PageHeader title="Prescriptions" subtitle="Capture, verify and dispense. Shared across branches so a prescription cannot be filled twice."
         actions={<>{can("pharmacist", "branch_manager") && <Button variant="outline" onClick={sendReminders}>Send refill reminders</Button>}{can("pharmacist", "technician", "branch_manager", "cashier") && <Button onClick={() => { setForm(structuredClone(emptyRx)); setErr(null); }}><FilePlus2 className="h-4 w-4" />Capture prescription</Button>}</>} />
       {info && <div className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{info}</div>}
+      {!online && (
+        <Card className="mb-4 p-4">
+          <h2 className="font-semibold">Offline: verified prescriptions saved on this device</h2>
+          <p className="text-sm text-slate-500">{snap ? `Copy from ${dateTime(snap.at)}. Controlled drugs cannot be dispensed offline.` : "No offline copy yet. A pharmacist must open the app while online first."}</p>
+          {user?.role === "pharmacist" && snap && <Table head={["Rx", "Patient", "Items", "Allergies", ""]} empty="Nothing to dispense">
+            {snap.prescriptions.filter((r: any) => r.items.some((i: any) => i.dispensedQty < i.max)).map((r: any) => <tr key={r._id}><Td className="font-mono text-xs">{r.rxNo}</Td><Td>{r.patientName}</Td><Td>{r.items.map((i: any) => `${i.name} ${i.dispensedQty}/${i.max}`).join(", ")}</Td><Td>{r.allergies?.length ? <Badge tone="red">{r.allergies.join(", ")}</Badge> : "-"}</Td><Td className="text-right"><Button size="sm" onClick={() => dispenseOffline(r)}>Dispense offline</Button></Td></tr>)}
+          </Table>}
+        </Card>
+      )}
       <Card className="p-4">
         <div className="mb-4 flex gap-2 overflow-x-auto">
           {["", "pending", "verified", "partial", "dispensed", "rejected"].map((s) => <Button key={s} size="sm" variant={status === s ? "primary" : "outline"} onClick={() => setStatus(s)}>{s || "All"}</Button>)}

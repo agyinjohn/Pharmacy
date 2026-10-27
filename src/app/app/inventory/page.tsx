@@ -2,12 +2,16 @@
 import { useState } from "react";
 import { PackagePlus, Search, ShieldAlert, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { useOffline } from "@/lib/offlineContext";
+import { adjustLocalStock, loadCatalog, newClientId, queueOp } from "@/lib/offline";
+import { ApiError } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
 import { dateFmt, daysUntil, money } from "@/lib/api";
 import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, Stat, Table, Td } from "@/components/ui";
 
 export default function Inventory() {
   const { call, can, branch } = useAuth();
+  const { online, setOffline, refresh: refreshQueue } = useOffline();
   const [filter, setFilter] = useState(""); const [q, setQ] = useState("");
   const list = useLoad(() => call(`/inventory?filter=${filter}&q=${encodeURIComponent(q)}`), [filter, q, branch?._id], !!branch);
   const alerts = useLoad(() => call("/inventory/alerts"), [branch?._id], !!branch);
@@ -15,7 +19,7 @@ export default function Inventory() {
   const [recv, setRecv] = useState<any>(null); const [err, setErr] = useState<string | null>(null);
   const [adj, setAdj] = useState<any>(null); const [trace, setTrace] = useState<any>(null);
   const [sug, setSug] = useState<any[] | null>(null); const [picked, setPicked] = useState<Record<string, boolean>>({}); const [defSup, setDefSup] = useState(""); const [done, setDone] = useState<string | null>(null);
-  const products = useLoad(() => call("/products?limit=500"), [], !!recv);
+  const products = useLoad(() => call("/products?limit=500").catch(async (e: any) => { const c = branch ? await loadCatalog(branch._id) : undefined; if (c) return c.products; throw e; }), [], !!recv);
   const suppliers = useLoad(() => call("/suppliers").catch(() => []), [], !!recv || !!sug);
   const manage = can("store_officer", "branch_manager", "pharmacist", "technician");
 
@@ -24,8 +28,19 @@ export default function Inventory() {
 
   const receive = async () => {
     setErr(null);
-    try { await call("/inventory/receive", { body: { supplier: recv.supplier || undefined, invoiceNo: recv.invoiceNo, items: [{ product: recv.product, batchNo: recv.batchNo, expiry: recv.expiry, qty: Number(recv.qty), cost: Number(recv.cost || 0) }] } }); setRecv(null); refresh(); }
-    catch (e: any) { setErr(e.message); }
+    const payload = { supplier: recv.supplier || undefined, invoiceNo: recv.invoiceNo, receivedAt: new Date().toISOString(), items: [{ product: recv.product, batchNo: recv.batchNo, expiry: recv.expiry, qty: Number(recv.qty), cost: Number(recv.cost || 0) }] };
+    // Offline: keep the goods receipt on this device and send it when the connection returns (NFR-05).
+    const queueReceipt = async () => {
+      if (!recv.product || !recv.batchNo || !recv.expiry || !(Number(recv.qty) > 0)) { setErr("Product, batch, expiry and quantity are required"); return; }
+      const name = (products.data || []).find((x: any) => x._id === recv.product)?.brand || "Item";
+      await queueOp({ clientId: newClientId(), kind: "receipt", branch: branch!._id, createdAt: payload.receivedAt, payload, label: `${name} batch ${recv.batchNo} x${recv.qty}`, status: "pending" });
+      await adjustLocalStock(branch!._id, [{ product: recv.product, qty: Number(recv.qty) }], 1);
+      setRecv(null); refreshQueue();
+    };
+    try {
+      if (!online) return await queueReceipt();
+      await call("/inventory/receive", { body: payload }); setRecv(null); refresh();
+    } catch (e: any) { if (e instanceof ApiError && e.status === 0) { setOffline(); await queueReceipt(); } else setErr(e.message); }
   };
   const adjust = async () => { setErr(null); try { await call("/inventory/adjust", { body: { batch: adj.batch._id, newQty: Number(adj.newQty), reason: adj.reason, witness: adj.witness } }); setAdj(null); refresh(); } catch (e: any) { setErr(e.message); } };
   const quarantine = async (b: any, release = false) => {
@@ -98,6 +113,7 @@ export default function Inventory() {
 
       <Modal open={!!recv} onClose={() => setRecv(null)} title="Receive stock">
         {recv && <div className="grid gap-3 sm:grid-cols-2">
+          {!online && <p className="sm:col-span-2 rounded bg-amber-50 p-2 text-xs text-amber-900">Offline: this receipt is saved on the device and added to stock when the connection returns. Only products in the offline catalogue can be chosen.</p>}
           <div className="sm:col-span-2"><Select label="Product" value={recv.product} onChange={(e) => setRecv({ ...recv, product: e.target.value })}><option value="">Choose product...</option>{(products.data || []).map((p: any) => <option key={p._id} value={p._id}>{p.brand} {p.strength}</option>)}</Select></div>
           <Select label="Supplier" value={recv.supplier || ""} onChange={(e) => setRecv({ ...recv, supplier: e.target.value })}><option value="">-</option>{(suppliers.data || []).map((s: any) => <option key={s._id} value={s._id}>{s.name}</option>)}</Select>
           <Input label="Invoice no." value={recv.invoiceNo || ""} onChange={(e) => setRecv({ ...recv, invoiceNo: e.target.value })} />

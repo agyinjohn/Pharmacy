@@ -3,7 +3,8 @@ import { useState } from "react";
 import { Download } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
-import { API, dateTime } from "@/lib/api";
+import { dateTime } from "@/lib/api";
+import { downloadExport } from "@/lib/download";
 import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, Table, Td } from "@/components/ui";
 
 export default function Register() {
@@ -14,16 +15,13 @@ export default function Register() {
   const rec = useLoad(() => call("/controlled-register/reconcile"), [branch?._id], !!branch);
   const [disp, setDisp] = useState<any>(null); const [batches, setBatches] = useState<any[]>([]); const [err, setErr] = useState<string | null>(null);
 
-  const download = async () => {
-    const res = await fetch(`${API}/controlled-register?format=csv${product ? `&product=${product}` : ""}`, { headers: { Authorization: `Bearer ${token}`, "x-branch-id": branch!._id } });
-    const url = URL.createObjectURL(await res.blob()); const a = document.createElement("a"); a.href = url; a.download = "controlled-drug-register.csv"; a.click(); URL.revokeObjectURL(url);
-  };
+  const download = (format: "csv" | "xlsx") => downloadExport(`/controlled-register?format=${format}${product ? `&product=${product}` : ""}`, token, `controlled-drug-register.${format}`, branch!._id).catch((e) => alert(e.message));
   const openDisposal = async (p: any) => { setErr(null); const b = await call(`/inventory/batches?product=${p._id}`); setBatches(b); setDisp({ product: p._id, batch: b[0]?._id || "", qty: "", witness: "", note: "" }); };
   const dispose = async () => { try { await call("/controlled-register/disposal", { body: { ...disp, qty: Number(disp.qty) } }); setDisp(null); rows.reload(); rec.reload(); } catch (e: any) { setErr(e.message); } };
 
   return (
     <div>
-      <PageHeader title="Controlled-drug register" subtitle={`${branch?.name} - append-only. Entries cannot be edited or deleted; corrections are new signed entries.`} actions={<Button variant="outline" onClick={download}><Download className="h-4 w-4" />Export CSV for inspection</Button>} />
+      <PageHeader title="Controlled-drug register" subtitle={`${branch?.name} - append-only. Entries cannot be edited or deleted; corrections are new signed entries.`} actions={<><Button variant="outline" onClick={() => download("xlsx")}><Download className="h-4 w-4" />Excel for inspection</Button><Button variant="outline" onClick={() => download("csv")}><Download className="h-4 w-4" />CSV</Button></>} />
       <Card className="mb-6 p-4">
         <h2 className="mb-2 font-semibold">Register vs shelf</h2>
         <div className="grid gap-2 sm:grid-cols-3">

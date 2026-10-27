@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Download, Printer } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
-import { API } from "@/lib/api";
+import { downloadExport } from "@/lib/download";
 import { Button, Card, ErrorNote, Input, PageHeader, Select, Spinner, Table, Td } from "@/components/ui";
 
 const REPORTS: [string, string, boolean][] = [
@@ -21,18 +21,15 @@ export default function Reports() {
   const qs = `${sep}branch=${branch}&from=${from}&to=${to}`;
   const { data, loading, error } = useLoad(() => call(`/reports/${rep}${qs}`, { branch: null }), [rep, branch, from, to]);
 
-  const csv = async () => {
-    const res = await fetch(`${API}/reports/${rep}${qs}&format=csv`, { headers: { Authorization: `Bearer ${token}` } });
-    const url = URL.createObjectURL(await res.blob()); const a = document.createElement("a"); a.href = url; a.download = `${rep.replace(/[?=&]/g, "-")}.csv`; a.click(); URL.revokeObjectURL(url);
-  };
+  const exportAs = (format: "csv" | "xlsx") => downloadExport(`/reports/${rep}${qs}&format=${format}`, token, `${rep.replace(/[?=&]/g, "-")}.${format}`).catch((e) => alert(e.message));
   const cols = data?.length ? Object.keys(data[0]) : [];
   const dated = REPORTS.find((r) => r[0] === rep)?.[2];
   const fmt = (v: any) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}T/.test(v) ? new Date(v).toLocaleString("en-GB") : v ?? "");
 
   return (
     <div>
-      <PageHeader title="Reports" subtitle="Across all branches or one. Export to CSV (opens in Excel) or print / save as PDF."
-        actions={<><Button variant="outline" onClick={csv}><Download className="h-4 w-4" />CSV / Excel</Button><Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" />PDF / Print</Button></>} />
+      <PageHeader title="Reports" subtitle="Across all branches or one. Export to Excel or CSV, or print / save as PDF."
+        actions={<><Button variant="outline" onClick={() => exportAs("xlsx")}><Download className="h-4 w-4" />Excel</Button><Button variant="outline" onClick={() => exportAs("csv")}><Download className="h-4 w-4" />CSV</Button><Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" />PDF / Print</Button></>} />
       <Card className="no-print mb-4 grid gap-3 p-4 sm:grid-cols-4">
         <Select label="Report" value={rep} onChange={(e) => setRep(e.target.value)}>{REPORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select>
         <Select label="Branch" value={branch} onChange={(e) => setBranch(e.target.value)}><option value="all">All branches</option>{branches.map((b) => <option key={b._id} value={b._id}>{b.name}</option>)}</Select>

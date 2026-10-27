@@ -4,10 +4,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, ShoppingCart, ClipboardCheck, Package, Boxes, Truck, ArrowLeftRight, ShieldAlert, Users, BarChart3,
-  Building2, UserCog, ScrollText, LogOut, Menu, X, Globe, Store, PackageCheck, Settings as Cog,
+  Building2, UserCog, ScrollText, LogOut, Menu, X, Globe, Store, PackageCheck, Settings as Cog, Upload, Tag,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Logo, Spinner, cn } from "@/components/ui";
+import { OfflineProvider } from "@/lib/offlineContext";
+import OfflineBanner from "@/components/OfflineBanner";
 
 const REPORTERS = ["branch_manager", "accountant", "auditor", "pharmacist", "store_officer"];
 const NAV: { href: string; label: string; icon: any; roles: string[] | "all" }[] = [
@@ -23,6 +25,8 @@ const NAV: { href: string; label: string; icon: any; roles: string[] | "all" }[]
   { href: "/app/transfers", label: "Transfers", icon: ArrowLeftRight, roles: ["store_officer", "branch_manager", "pharmacist", "technician"] },
   { href: "/app/register", label: "Controlled drugs", icon: ShieldAlert, roles: ["pharmacist", "branch_manager", "auditor"] },
   { href: "/app/customers", label: "Customers", icon: Users, roles: ["cashier", "pharmacist", "technician", "branch_manager", "accountant", "auditor"] },
+  { href: "/app/promotions", label: "Promotions", icon: Tag, roles: ["branch_manager", "cashier", "pharmacist"] },
+  { href: "/app/import", label: "Data import", icon: Upload, roles: ["branch_manager", "store_officer", "accountant"] },
   { href: "/app/reports", label: "Reports", icon: BarChart3, roles: REPORTERS },
   { href: "/app/branches", label: "Branches", icon: Store, roles: ["branch_manager"] },
   { href: "/app/team", label: "Team", icon: UserCog, roles: ["branch_manager"] },
@@ -100,7 +104,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <button onClick={() => setOpen(!open)} aria-label="Menu" className="rounded p-1 hover:bg-slate-100">{open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}</button>
           <Logo /> <span className="ml-auto truncate text-xs text-slate-500">{branch?.name}</span>
         </div>
-        <main className="mx-auto max-w-7xl p-4 sm:p-6">{children}</main>
+        <OfflineProvider><main className="mx-auto max-w-7xl p-4 sm:p-6"><OfflineBanner />{children}</main></OfflineProvider>
       </div>
     </div>
   );

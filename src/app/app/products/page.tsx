@@ -4,13 +4,15 @@ import { Plus, Upload, Repeat } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
 import { money } from "@/lib/api";
+import { parseCsv } from "@/lib/csv";
+import { downloadExport } from "@/lib/download";
 import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, Table, Td } from "@/components/ui";
 
 const LEGAL: Record<string, [string, any]> = { otc: ["OTC", "green"], pharmacy_only: ["Pharmacy only", "blue"], prescription_only: ["Prescription", "amber"], controlled: ["Controlled", "red"] };
 const blank = { brand: "", generic: "", strength: "", form: "", packSize: "", manufacturer: "", barcode: "", category: "General", legalStatus: "otc", controlClass: "standard", fdaRegNo: "", price: "", cost: "", taxRate: "0", reorderLevel: "10", isDrug: true, storage: "ambient" };
 
 export default function Products() {
-  const { call, can, branch, branches } = useAuth();
+  const { call, can, branch, branches, token } = useAuth();
   const [q, setQ] = useState(""); const [legal, setLegal] = useState("");
   const { data, loading, error, reload } = useLoad(() => call(`/products?limit=500&branch=${branch?._id || ""}&q=${encodeURIComponent(q)}${legal ? `&legalStatus=${legal}` : ""}`), [q, legal, branch?._id]);
   const [edit, setEdit] = useState<any>(null); const [err, setErr] = useState<string | null>(null);
@@ -32,10 +34,7 @@ export default function Products() {
   };
 
   const importCsv = async (file: File) => {
-    const text = await file.text();
-    const lines = text.split(/\r?\n/).filter(Boolean);
-    const head = lines[0].split(",").map((h) => h.trim());
-    const rows = lines.slice(1).map((l) => { const c = l.split(","); return Object.fromEntries(head.map((h, i) => [h, (c[i] || "").trim()])); });
+    const rows = parseCsv(await file.text());
     try { setReport(await call("/products/import", { body: { rows } })); reload(); } catch (e: any) { setReport({ errors: [{ row: 0, error: e.message }], created: 0, updated: 0 }); }
   };
 
@@ -43,6 +42,7 @@ export default function Products() {
     <div>
       <PageHeader title="Products" subtitle="Shared catalogue for every branch. Stock shown for the selected branch."
         actions={<>
+          <Button variant="outline" onClick={() => downloadExport("/export/products?format=xlsx", token, "products.xlsx").catch((e) => alert(e.message))}>Excel</Button>
           {editable && <><Button variant="outline" onClick={() => { setImp(true); setReport(null); }}><Upload className="h-4 w-4" />Import CSV</Button><Button onClick={() => setEdit({ ...blank })}><Plus className="h-4 w-4" />Add product</Button></>}
         </>} />
       <Card className="p-4">

@@ -71,7 +71,7 @@ export default function Shop({ params }: { params: Promise<{ slug: string }> }) 
             {(products.data || []).map((p: any) => (
               <Card key={p._id} className="flex flex-col p-4">
                 <div className="flex items-start justify-between gap-2"><div><h3 className="font-semibold text-slate-900">{p.brand} {p.strength}</h3><p className="text-sm text-slate-500">{p.generic} · {p.form} · {p.packSize}</p></div><div className="text-right text-lg font-bold tabular-nums">{money(p.price)}</div></div>
-                <div className="mt-2 flex flex-wrap gap-1.5">{p.requiresRx ? <Badge tone="amber"><FileText className="mr-1 h-3 w-3" />Prescription needed</Badge> : <Badge tone="green">No prescription</Badge>}<Badge tone={p.inStock ? (p.stock < 10 ? "amber" : "green") : "red"}>{p.inStock ? (p.stock < 10 ? `Only ${p.stock} left` : "In stock") : "Out of stock here"}</Badge></div>
+                <div className="mt-2 flex flex-wrap gap-1.5">{p.promo && <Badge tone="violet">{p.promo}</Badge>}{p.requiresRx ? <Badge tone="amber"><FileText className="mr-1 h-3 w-3" />Prescription needed</Badge> : <Badge tone="green">No prescription</Badge>}<Badge tone={p.inStock ? (p.stock < 10 ? "amber" : "green") : "red"}>{p.inStock ? (p.stock < 10 ? `Only ${p.stock} left` : "In stock") : "Out of stock here"}</Badge></div>
                 <div className="mt-auto pt-4">{p.inStock ? <Button className="w-full" onClick={() => { add(p); }} disabled={!branch?.online}><Plus className="h-4 w-4" />Add to cart</Button> : <Button className="w-full" variant="outline" onClick={() => showAlt(p)}>See substitutes</Button>}</div>
               </Card>
             ))}
@@ -194,7 +194,7 @@ function Cart({ open, onClose, cart, setCart, branch, shop, slug, auth, needLogi
             {method !== "cod" && <p className="mt-1 text-xs text-slate-500">Demo checkout: payment is simulated. Card details are never stored.</p>}
           </div>
 
-          <div className="space-y-1 border-t border-slate-200 pt-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(subtotal)}</span></div>{tax > 0 && <div className="flex justify-between"><span>Tax</span><span>{money(tax)}</span></div>}{fulfilment === "delivery" && <div className="flex justify-between"><span>Delivery {z ? `(~${z.etaMins} min)` : ""}</span><span>{z ? money(fee) : "Choose zone"}</span></div>}<div className="flex justify-between text-lg font-bold"><span>Total</span><span>{money(total)}</span></div></div>
+          <div className="space-y-1 border-t border-slate-200 pt-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(subtotal)}</span></div>{tax > 0 && <div className="flex justify-between"><span>Tax</span><span>{money(tax)}</span></div>}{cart.some((i: Item) => i.product.promo) && <div className="flex justify-between text-emerald-700"><span>Promotions</span><span>applied at checkout</span></div>}{fulfilment === "delivery" && <div className="flex justify-between"><span>Delivery {z ? `(~${z.etaMins} min)` : ""}</span><span>{z ? money(fee) : "Choose zone"}</span></div>}<div className="flex justify-between text-lg font-bold"><span>Total</span><span>{money(total)}</span></div></div>
           <ErrorNote error={err} />
           <Button className="w-full" size="lg" loading={busy} disabled={!branch?.online || (fulfilment === "delivery" && (!zone || !line)) || (needsRx && !image && !refill)} onClick={place}>{auth.token ? `Place order · ${money(total)}` : "Sign in to place order"}</Button>
         </div>

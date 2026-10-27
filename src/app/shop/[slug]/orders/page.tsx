@@ -35,7 +35,7 @@ export default function MyOrders({ params }: { params: Promise<{ slug: string }>
     <div className="min-h-screen bg-slate-50">
       <ShopHeader shop={shop.data} slug={slug} right={<Link href={`/shop/${slug}`} className="text-sm font-medium text-teal-700">Continue shopping</Link>} />
       <main className="mx-auto max-w-3xl px-4 py-8">
-        <div className="mb-6 flex items-center justify-between"><h1 className="text-2xl font-bold">My orders</h1>{auth.token && <span className="space-x-4 text-sm text-slate-500"><button onClick={exportData} className="underline">Download my data</button><button onClick={erasure} className="underline">Erase my data</button></span>}</div>
+        <div className="mb-6 flex items-center justify-between"><h1 className="text-2xl font-bold">My orders{auth.customer?.loyaltyPoints > 0 && <span className="ml-3 align-middle text-sm font-medium text-violet-700">{auth.customer.loyaltyPoints} loyalty points</span>}</h1>{auth.token && <span className="space-x-4 text-sm text-slate-500"><button onClick={exportData} className="underline">Download my data</button><button onClick={erasure} className="underline">Erase my data</button></span>}</div>
         {!auth.ready ? <Spinner /> : !auth.token ? <p className="text-slate-600">Please <Link href={`/shop/${slug}`} className="text-teal-700 underline">sign in</Link> from the store page to see your orders.</p> : (
           <>
             <ErrorNote error={err || orders.error} />
@@ -46,7 +46,7 @@ export default function MyOrders({ params }: { params: Promise<{ slug: string }>
                 <Card key={o._id} className="mb-4 p-5">
                   <div className="flex flex-wrap items-center justify-between gap-2"><div><span className="font-mono text-sm">{o.orderNo}</span> <span className="text-xs text-slate-500">{dateTime(o.createdAt)} · {o.branch?.name}</span></div><StatusBadge s={o.status} /></div>
                   <ul className="mt-3 text-sm text-slate-700">{o.items.map((i: any, k: number) => <li key={k}>{i.qty} × {i.name} {i.requiresRx && <Badge tone="amber">Rx</Badge>}</li>)}</ul>
-                  <div className="mt-2 text-sm text-slate-600">Total <b>{money(o.total)}</b> · {o.payment.method} ({o.payment.status})</div>
+                  <div className="mt-2 text-sm text-slate-600">{o.discount > 0 && <span className="text-emerald-700">You saved {money(o.discount)} · </span>}Total <b>{money(o.total)}</b>{o.payment.refundedAmount > 0 && <span> · refunded {money(o.payment.refundedAmount)}</span>} · {o.payment.method} ({o.payment.status})</div>
                   {o.status === "pending_review" && <p className="mt-2 rounded bg-amber-50 p-2 text-sm text-amber-900">A pharmacist is reviewing your prescription.</p>}
                   {o.reviewNote && dead && <p className="mt-2 rounded bg-red-50 p-2 text-sm text-red-800">{o.reviewNote}</p>}
                   {!dead && (

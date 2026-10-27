@@ -5,11 +5,12 @@ import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
 import { dateTime } from "@/lib/api";
 import { Badge, Button, Card, ErrorNote, Input, PageHeader, Spinner, Table, Td } from "@/components/ui";
+import DataProtection from "@/components/DataProtection";
 
 export default function Settings() {
   const { call, user, org, can, refresh, mustSetupTwoStep } = useAuth();
   const [tab, setTab] = useState("security");
-  const tabs = [["security", "Security"], ...(can("branch_manager") ? [["org", "Organisation"], ["privacy", "Privacy requests"], ["notif", "Notifications"]] : [])];
+  const tabs = [["security", "Security"], ...(can("branch_manager") ? [["org", "Organisation"], ["privacy", "Privacy requests"], ["dp", "Data protection"], ["notif", "Notifications"]] : [])];
   return (
     <div>
       <PageHeader title="Settings" subtitle={org?.name} />
@@ -19,6 +20,7 @@ export default function Settings() {
       {tab === "org" && <Org call={call} org={org} refresh={refresh} />}
       {tab === "privacy" && <Privacy call={call} />}
       {tab === "notif" && <Notifications call={call} />}
+      {tab === "dp" && <DataProtection />}
     </div>
   );
 }
@@ -58,7 +60,7 @@ function Org({ call, org, refresh }: any) {
   const [err, setErr] = useState<string | null>(null); const [ok, setOk] = useState(false);
   const save = async () => {
     setErr(null); setOk(false);
-    try { await call("/org", { method: "PATCH", branch: null, body: { name: f.name, dpcRegistration: f.dpcRegistration, settings: { purchasing: f.purchasing, codEnabled: f.codEnabled, requireTwoStep: f.requireTwoStep, retentionYears: Number(f.retentionYears), reservationMinutes: Number(f.reservationMinutes) } } }); setOk(true); refresh(); }
+    try { await call("/org", { method: "PATCH", branch: null, body: { name: f.name, dpcRegistration: f.dpcRegistration, settings: { purchasing: f.purchasing, codEnabled: f.codEnabled, requireTwoStep: f.requireTwoStep, retentionYears: Number(f.retentionYears), reservationMinutes: Number(f.reservationMinutes), loyalty: { enabled: f.loyalty?.enabled !== false, pointsPerCedi: Number(f.loyalty?.pointsPerCedi ?? 0.1), pointValue: Number(f.loyalty?.pointValue ?? 0.1), minRedeemPoints: Number(f.loyalty?.minRedeemPoints ?? 50) } } } }); setOk(true); refresh(); }
     catch (e: any) { setErr(e.message); }
   };
   return (
@@ -67,6 +69,14 @@ function Org({ call, org, refresh }: any) {
       <Input label="Data Protection Commission registration no." value={f.dpcRegistration} onChange={(e) => setF({ ...f, dpcRegistration: e.target.value })} hint="Shown on the customer portal" />
       <label className="block text-sm"><span className="mb-1 block font-medium">Purchasing</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2" value={f.purchasing} onChange={(e) => setF({ ...f, purchasing: e.target.value })}><option value="branch">Each branch buys for itself</option><option value="central">Head office buys, branches receive</option></select></label>
       <Input label="Retention period for controlled-drug records (years)" type="number" value={f.retentionYears} onChange={(e) => setF({ ...f, retentionYears: e.target.value })} />
+      <div className="rounded-lg border border-slate-200 p-3">
+        <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={f.loyalty?.enabled !== false} onChange={(e) => setF({ ...f, loyalty: { ...f.loyalty, enabled: e.target.checked } })} />Loyalty points</label>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          <Input label="Points per GH₵ spent" type="number" step="0.01" value={f.loyalty?.pointsPerCedi ?? 0.1} onChange={(e) => setF({ ...f, loyalty: { ...f.loyalty, pointsPerCedi: e.target.value } })} />
+          <Input label="GH₵ value of a point" type="number" step="0.01" value={f.loyalty?.pointValue ?? 0.1} onChange={(e) => setF({ ...f, loyalty: { ...f.loyalty, pointValue: e.target.value } })} />
+          <Input label="Minimum points to redeem" type="number" value={f.loyalty?.minRedeemPoints ?? 50} onChange={(e) => setF({ ...f, loyalty: { ...f.loyalty, minRedeemPoints: e.target.value } })} />
+        </div>
+      </div>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!f.codEnabled} onChange={(e) => setF({ ...f, codEnabled: e.target.checked })} />Allow pay on delivery</label>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!f.requireTwoStep} onChange={(e) => setF({ ...f, requireTwoStep: e.target.checked })} />Require two-step sign-in for owners, managers and pharmacists</label>
       <ErrorNote error={err} />{ok && <p className="text-sm text-emerald-700">Saved.</p>}
