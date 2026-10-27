@@ -31,7 +31,7 @@ The API must allow this origin (`CORS_ORIGIN` in the API `.env`, default `http:/
 | `/app/register` | Append-only controlled-drug register, disposal with witness, inspector CSV export |
 | `/app/orders`, `/app/rider` | Online order review / pack / dispatch, rider mobile view with proof of delivery |
 | `/app/reports`, `/app/audit` | Reports with CSV / print-to-PDF, immutable audit log |
-| `/app/branches`, `/app/team` | Branch licences and delivery zones, users with per-branch roles |
+| `/app/branches`, `/app/team` | Branch licences and details, users with per-branch roles |
 | `/shop/[slug]` | Customer portal (demo: `/shop/medicare`): search, stock per branch, cart, prescription upload, checkout, order tracking |
 
 Navigation adapts to the signed-in role (owner, branch manager, pharmacist, technician, cashier, store officer, accountant, rider, auditor).
@@ -41,10 +41,11 @@ Navigation adapts to the signed-in role (owner, branch manager, pharmacist, tech
 1. `/` marketing page, then **Try the live demo**.
 2. `owner@demo.com` / `Demo@1234`: dashboard across three branches, branch licence warning (Kumasi), expiring stock.
 3. `pharmacist@demo.com`: Prescriptions, open `RX-DEMO-001` (patient allergic to penicillin, prescribed Amoxil) and see the warning and override flow. Dispense `RX-DEMO-002`. Open the controlled-drug register after dispensing `RX-DEMO-003`.
-4. `/shop/medicare`: sign in with any phone number (code `123456`), search "malaria", order with delivery, then approve / pack / dispatch in **Online orders**, deliver as `rider@demo.com`.
-5. `cashier@demo.com`: open a shift, sell items, print receipt.
+4. `/shop/medicare`: sign in with any phone number (code `123456`), search "malaria", order with delivery. In **Online orders** record the delivery fee agreed by phone, then approve / pack / dispatch, and deliver as `rider@demo.com`.
+5. `pharmacist@demo.com`: open `RX-DEMO-004` (uploaded online), type the directions from the photo, then verify.
+6. `cashier@demo.com`: open a shift, sell Panadol (see "Tell the customer" directions), print the receipt.
 
-Payments and SMS are simulated in the demo (see the API README).
+Payments and SMS are simulated in demo mode (see the API README).
 
 ## Offline till
 
@@ -55,5 +56,22 @@ Visit the till once while online so the catalogue and app shell are cached.
 
 ## Deploy
 
-`docker build --build-arg NEXT_PUBLIC_API_URL=https://api.example.com/api .` or deploy to Vercel (set `NEXT_PUBLIC_API_URL`).
+Deploy the API first (see the `Pharmacybackend` README), then this app.
+
+**Vercel (easiest)**: import the repo, framework Next.js, and set these environment variables before the first build:
+
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | `https://<api-host>/api` |
+| `NEXT_PUBLIC_DEMO_MODE` | `true` for a demo deployment (one-click demo accounts on the sign-in page); leave unset for a live pharmacy |
+
+They are baked in at build time, so redeploy after changing them.
+
+**Docker**:
+`docker build --build-arg NEXT_PUBLIC_API_URL=https://<api-host>/api --build-arg NEXT_PUBLIC_DEMO_MODE=true -t pharmaone-web .`
+then `docker run -p 3000:3000 pharmaone-web`.
+
+After deploying, add the web app's address to the API's `CORS_ORIGIN` and `PUBLIC_WEB_URL`, and check:
+the sign-in page loads, a demo account signs in (demo mode), and `/shop/medicare` lists products.
+
 CI (`.github/workflows/ci.yml`) type-checks and builds on every PR.

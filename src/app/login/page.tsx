@@ -9,6 +9,8 @@ import { Button, ErrorNote, Input, Logo } from "@/components/ui";
 import AuthAside from "@/components/AuthAside";
 
 const DEMO_PASSWORD = "Demo@1234";
+// One-click demo accounts only on a demo deployment (NEXT_PUBLIC_DEMO_MODE=true), never on a live one.
+const SHOW_DEMO = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 const DEMO = [
   ["owner@demo.com", "Owner", "All branches"], ["manager@demo.com", "Branch manager", "Accra Central"], ["pharmacist@demo.com", "Pharmacist", "Verify and dispense"],
   ["cashier@demo.com", "Cashier", "Point of sale"], ["store@demo.com", "Store officer", "Stock and orders"], ["rider@demo.com", "Rider", "Deliveries"],
@@ -52,7 +54,7 @@ export default function Login() {
           </form>
           <p className="mt-6 text-sm text-slate-600">New pharmacy? <Link href="/signup" className="font-medium text-slate-900 underline underline-offset-4">Create a workspace</Link></p>
 
-          <div className="mt-10 border-t border-slate-200 pt-6">
+          {SHOW_DEMO && <div className="mt-10 border-t border-slate-200 pt-6">
             <div className="flex items-baseline justify-between"><h2 className="text-sm font-medium text-slate-900">Try a demo account</h2><span className="text-xs text-slate-500">Signs you straight in</span></div>
             <div className="mt-3 grid grid-cols-2 gap-2">
               {DEMO.map(([em, role, what]) => (
@@ -63,7 +65,7 @@ export default function Login() {
               ))}
             </div>
             <p className="mt-3 text-xs text-slate-500">All demo accounts use the password <code className="rounded bg-slate-100 px-1 py-0.5">{DEMO_PASSWORD}</code>. Shopping as a customer? <Link href="/shop/medicare" className="underline underline-offset-2 hover:text-slate-800">Open the demo store</Link>.</p>
-          </div>
+          </div>}
         </div>
       </div>
       <AuthAside />
