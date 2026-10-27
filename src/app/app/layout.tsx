@@ -104,7 +104,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <button onClick={() => setOpen(!open)} aria-label="Menu" className="rounded p-1 hover:bg-slate-100">{open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}</button>
           <Logo /> <span className="ml-auto truncate text-xs text-slate-500">{branch?.name}</span>
         </div>
-        <OfflineProvider><main className="mx-auto max-w-7xl p-4 sm:p-6"><OfflineBanner />{children}</main></OfflineProvider>
+        <OfflineProvider><main className={path.startsWith("/app/pos") ? "" : "mx-auto max-w-7xl p-4 sm:p-6"}>{path.startsWith("/app/pos") ? <div className="px-4 pt-4 empty:hidden sm:px-6"><OfflineBanner /></div> : <OfflineBanner />}{children}</main></OfflineProvider>
       </div>
     </div>
   );

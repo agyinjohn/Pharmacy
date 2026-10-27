@@ -1,12 +1,12 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Minus, Plus, Printer, Search, Trash2, PauseCircle, PlayCircle, ScanLine } from "lucide-react";
+import { Minus, Plus, Printer, Trash2, PauseCircle, PlayCircle, ScanLine, X, UserRound, ShoppingBasket, Clock } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
 import { ApiError, dateFmt, dateTime, money } from "@/lib/api";
 import { adjustLocalStock, loadCatalog, newClientId, queueOp } from "@/lib/offline";
 import { useOffline } from "@/lib/offlineContext";
-import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select } from "@/components/ui";
+import { Badge, Button, ErrorNote, Input, Modal, Select, cn } from "@/components/ui";
 import { Receipt } from "@/components/Receipt";
 import ProductImage from "@/components/ProductImage";
 
@@ -45,6 +45,13 @@ export default function POS() {
 
   useEffect(() => { barcodeRef.current?.focus(); }, [receipt]);
 
+  // Everyday items to tap when nothing is typed (non-prescription catalogue for this branch).
+  const catalog = useLoad<any[]>(() => call("/pos/catalog").then((c: any) => c.products).catch(async () => (branch ? (await loadCatalog(branch._id))?.products || [] : [])), [branch?._id], !!branch);
+  const [cat, setCat] = useState("All");
+  const categories = ["All", ...Array.from(new Set((catalog.data || []).map((p: any) => p.category).filter(Boolean))) as string[]];
+  const browse = (catalog.data || []).filter((p: any) => cat === "All" || p.category === cat);
+  const inCart = (id: string) => cart.find((l) => l.product._id === id)?.qty || 0;
+
   const search = useCallback(async (text: string, barcode = false) => {
     if (!text.trim()) { setResults([]); return; }
     try {
@@ -61,12 +68,13 @@ export default function POS() {
     if (!p.stock) { setError(`${p.brand} is out of stock at this branch. Check substitutes in Products.`); return; }
     setCart((c) => { const i = c.findIndex((l) => l.product._id === p._id); if (i >= 0) { const n = [...c]; n[i] = { ...n[i], qty: Math.min(p.stock, n[i].qty + 1) }; return n; } return [...c, { product: p, qty: 1 }]; });
   };
+  // One box for both: a scanner types the barcode and presses Enter; people type a name.
   const scan = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const input = e.currentTarget.elements.namedItem("barcode") as HTMLInputElement;
-    const code = input.value.trim();
-    input.value = "";
+    const code = q.trim();
     if (!code) return;
+    if (results.length === 1) { add(results[0]); setQ(""); return; }
+    setQ("");
     try { const r = navigator.onLine ? await call(`/pos/lookup?barcode=${encodeURIComponent(code)}`).catch(async (er) => { if (er instanceof ApiError && er.status === 0) { setOffline(); return localSearch(code, true); } throw er; }) : await localSearch(code, true); if (r[0]) add(r[0]); else setError(`No product with barcode ${code}${offline ? " (offline catalogue only has non-prescription items)" : ""}`); } catch (er: any) { setError(er.message); }
   };
   const setQty = (id: string, d: number) => setCart((c) => c.map((l) => (l.product._id === id ? { ...l, qty: Math.max(1, Math.min(l.product.stock, l.qty + d)) } : l)));
@@ -133,60 +141,112 @@ export default function POS() {
   const closeShift = async () => { try { const s = await call("/shifts/close", { body: { countedCash: Number(counted) } }); setShiftModal(null); shift.reload(); alert(`Shift closed. Expected cash ${money(s.expectedCash)}, counted ${money(s.countedCash)}, variance ${money(s.variance)}`); } catch (e: any) { setError(e.message); } };
 
   if (!branch) return null;
+  const methods: [string, string][] = [["cash", "Cash"], ["momo", "MoMo"], ["card", "Card"], ...(customer?.creditLimit > 0 ? [["credit", "Account"] as [string, string]] : []), ...(customer?.loyaltyPoints > 0 && online ? [["loyalty", "Points"] as [string, string]] : [])];
+  const setPay = (i: number, patch: any) => setPays(pays.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+  const tiles = q.trim() ? results : browse;
+  const units = cart.reduce((s, l) => s + l.qty, 0);
+
   return (
-    <div>
-      <PageHeader title="Point of sale" subtitle={branch.name}
-        actions={<>
-          {shift.data ? <><Badge tone="green">Shift open since {dateTime(shift.data.openedAt)}</Badge><Button size="sm" variant="outline" onClick={() => setShiftModal("close")}>Close shift</Button></>
+    <div className="flex min-h-[calc(100vh-57px)] flex-col lg:min-h-screen">
+      {/* Top bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+        <div className="flex items-baseline gap-3"><h1 className="text-lg font-semibold tracking-tight">Point of sale</h1><span className="text-sm text-slate-500">{branch.name}</span></div>
+        <div className="flex items-center gap-2">
+          {shift.data
+            ? <><span className="hidden items-center gap-1.5 rounded-md bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 ring-1 ring-slate-200 sm:flex"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Shift open since {dateTime(shift.data.openedAt).split(", ")[1] || dateTime(shift.data.openedAt)}</span><Button size="sm" variant="outline" onClick={() => setShiftModal("close")}>Close shift</Button></>
             : <Button size="sm" onClick={() => setShiftModal("open")}>Open shift</Button>}
-          <Button size="sm" variant="outline" onClick={() => setHeldOpen(true)}><PlayCircle className="h-4 w-4" />Held ({held.data?.length || 0})</Button>
-        </>} />
-      <div className="grid gap-6 lg:grid-cols-5">
-        <div className="space-y-4 lg:col-span-3">
-          <Card className="p-4">
-            <form onSubmit={scan} className="flex gap-2">
-              <div className="relative flex-1"><ScanLine className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input ref={barcodeRef} name="barcode" autoComplete="off" placeholder="Scan barcode and press Enter" className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20" /></div>
-            </form>
-            <div className="relative mt-3"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search brand or generic name" className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20" /></div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {results.map((p) => (
-                <button key={p._id} onClick={() => add(p)} className="flex gap-3 rounded-lg border border-slate-200 p-3 text-left hover:border-slate-400">
-                  <ProductImage product={p} size="sm" className="h-14 w-14 shrink-0 rounded-md border border-slate-100" />
-                  <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2"><span className="text-sm font-medium">{p.brand} {p.strength}</span><span className="text-sm font-semibold tabular-nums">{money(p.price)}</span></div>
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">{p.generic}
-                    {p.legalStatus === "prescription_only" && <Badge tone="amber">Rx</Badge>}{p.legalStatus === "controlled" && <Badge tone="red">Controlled</Badge>}{p.legalStatus === "pharmacy_only" && <Badge tone="blue">Pharmacy only</Badge>}
-                    <span className={p.stock ? (p.stock < 10 ? "text-amber-700" : "text-emerald-700") : "text-red-700"}>{p.stock ? `${p.stock} in stock` : "Out of stock"}</span>
-                    {p.nextExpiry && p.stock > 0 && <span>exp {dateFmt(p.nextExpiry)}</span>}
-                  </div>
+          <Button size="sm" variant="outline" onClick={() => setHeldOpen(true)}><PlayCircle className="h-4 w-4" />Held{held.data?.length ? <span className="rounded bg-slate-900 px-1.5 text-[11px] text-white">{held.data.length}</span> : null}</Button>
+        </div>
+      </div>
+
+      <div className="grid flex-1 lg:grid-cols-[1fr_420px]">
+        {/* Products */}
+        <div className="min-w-0 px-4 py-5 sm:px-6">
+          <form onSubmit={scan} className="relative">
+            <ScanLine className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <input ref={barcodeRef} value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" aria-label="Scan a barcode or search products"
+              placeholder="Scan a barcode or type a medicine name" className="h-12 w-full rounded-lg border border-slate-300 bg-white pl-12 pr-10 text-[15px] outline-none placeholder:text-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-900/5" />
+            {q && <button type="button" aria-label="Clear search" onClick={() => setQ("")} className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>}
+          </form>
+          {!q.trim() && (
+            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+              {categories.map((c) => <button key={c} onClick={() => setCat(c)} className={cn("whitespace-nowrap rounded-full border px-3 py-1 text-sm transition", cat === c ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-400")}>{c}</button>)}
+            </div>
+          )}
+          {q.trim() && <p className="mt-4 text-sm text-slate-500">{results.length ? `${results.length} result${results.length > 1 ? "s" : ""} for "${q}"` : `No matches for "${q}"`}{results.length === 1 ? " · press Enter to add" : ""}</p>}
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+            {tiles.map((p: any) => {
+              const n = inCart(p._id); const out = !p.stock;
+              return (
+                <button key={p._id} onClick={() => add(p)} disabled={out} className={cn("group relative flex flex-col overflow-hidden rounded-lg border bg-white text-left transition", out ? "cursor-not-allowed border-slate-200 opacity-60" : n ? "border-slate-900 ring-1 ring-slate-900" : "border-slate-200 hover:border-slate-400 hover:shadow-sm")}>
+                  <ProductImage product={p} size="sm" className="aspect-[16/9] w-full border-b border-slate-100" />
+                  {n > 0 && <span className="absolute right-2 top-2 grid h-6 min-w-6 place-items-center rounded-full bg-slate-900 px-1.5 text-xs font-semibold text-white">{n}</span>}
+                  <div className="flex flex-1 flex-col p-3">
+                    <div className="line-clamp-2 text-sm font-medium leading-snug text-slate-900">{p.brand}</div>
+                    <div className="mt-0.5 truncate text-xs text-slate-500">{[p.strength, p.generic].filter(Boolean).join(" · ")}</div>
+                    <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+                      <span className="whitespace-nowrap text-sm font-semibold tabular-nums">{money(p.price)}</span>
+                      <span className={cn("text-[11px]", out ? "text-red-700" : p.stock < 10 ? "text-amber-700" : "text-slate-500")}>{out ? "Out of stock" : `${p.stock} left`}</span>
+                    </div>
+                    {(p.legalStatus === "prescription_only" || p.legalStatus === "controlled") && <span className="mt-1.5 w-fit rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-900 ring-1 ring-amber-700/15">{p.legalStatus === "controlled" ? "Controlled" : "Prescription"}</span>}
                   </div>
                 </button>
-              ))}
-              {q && !results.length && <p className="col-span-full py-6 text-center text-sm text-slate-500">No matches</p>}
-            </div>
-          </Card>
+              );
+            })}
+          </div>
+          {!q.trim() && catalog.data && !browse.length && <p className="mt-10 text-center text-sm text-slate-500">No products to show. Search above for prescription medicines.</p>}
+          {!q.trim() && <p className="mt-6 text-xs text-slate-400">Prescription-only medicines are not listed here; search for them by name.</p>}
         </div>
 
-        <Card className="p-4 lg:col-span-2">
-          <h2 className="font-semibold">Basket</h2>
-          <div className="mt-3 divide-y divide-slate-100">
-            {cart.map((l) => (
-              <div key={l.product._id} className="flex items-center gap-2 py-2 text-sm">
-                <ProductImage product={l.product} size="xs" className="h-8 w-8 shrink-0 rounded" />
-                <div className="min-w-0 flex-1"><div className="truncate font-medium">{l.product.brand} {l.product.strength}</div><div className="text-xs text-slate-500">{money(l.product.price)} each{promoOf(l.product._id)?.promoDiscount > 0 && <span className="ml-1 font-medium text-emerald-700">{promoOf(l.product._id).promoName}: -{money(promoOf(l.product._id).promoDiscount)}</span>}</div></div>
-                <div className="flex items-center gap-1"><button aria-label="Less" onClick={() => setQty(l.product._id, -1)} className="rounded border border-slate-200 p-1 hover:bg-slate-50"><Minus className="h-3.5 w-3.5" /></button><span className="w-7 text-center tabular-nums">{l.qty}</span><button aria-label="More" onClick={() => setQty(l.product._id, 1)} className="rounded border border-slate-200 p-1 hover:bg-slate-50"><Plus className="h-3.5 w-3.5" /></button></div>
-                <div className="w-20 text-right tabular-nums">{money(l.product.price * l.qty)}</div>
-                <button aria-label="Remove" onClick={() => setCart(cart.filter((x) => x !== l))} className="text-slate-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+        {/* Basket */}
+        <aside id="basket" className="flex scroll-mt-14 flex-col border-t border-slate-200 bg-white lg:sticky lg:top-0 lg:h-[calc(100vh-57px)] lg:border-l lg:border-t-0">
+          <div className="border-b border-slate-200 px-5 py-3">
+            {customer ? (
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <span className="flex min-w-0 items-center gap-2"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">{customer.name.split(" ").map((x: string) => x[0]).slice(0, 2).join("")}</span><span className="min-w-0"><span className="block truncate font-medium">{customer.name}</span><span className="text-xs text-slate-500">{customer.phone}{customer.loyaltyPoints > 0 ? ` · ${customer.loyaltyPoints} points` : ""}{customer.allergies?.length ? ` · allergic to ${customer.allergies.join(", ")}` : ""}</span></span></span>
+                <button className="rounded p-1 text-slate-400 hover:bg-slate-100" aria-label="Remove customer" onClick={() => setCustomer(null)}><X className="h-4 w-4" /></button>
               </div>
-            ))}
-            {!cart.length && <p className="py-8 text-center text-sm text-slate-500">Scan or search to add items</p>}
+            ) : (
+              <div className="relative">
+                <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input value={custQ} onChange={(e) => setCustQ(e.target.value)} placeholder="Add customer (optional)" aria-label="Find customer" className="w-full rounded-md border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-slate-400 focus:bg-white" />
+                {custList.length > 0 && <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg">{custList.map((c) => <button key={c._id} onClick={() => { setCustomer(c); setCustQ(""); setCustList([]); }} className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"><span>{c.name} <span className="text-slate-500">{c.phone}</span></span>{c.creditLimit > 0 && <Badge tone="slate">Account</Badge>}</button>)}</div>}
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-5">
+            {cart.map((l) => {
+              const pr = promoOf(l.product._id);
+              return (
+                <div key={l.product._id} className="flex items-center gap-3 border-b border-slate-100 py-3">
+                  <ProductImage product={l.product} size="xs" className="h-10 w-10 shrink-0 rounded-md" />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{l.product.brand}</div>
+                    <div className="truncate text-xs text-slate-500">{[l.product.strength, money(l.product.price)].filter(Boolean).join(" · ")}{pr?.promoDiscount > 0 && <span className="ml-1 text-emerald-700">· {pr.promoName}</span>}</div>
+                  </div>
+                  <div className="flex items-center rounded-md border border-slate-200">
+                    <button aria-label="One less" onClick={() => (l.qty === 1 ? setCart(cart.filter((x) => x !== l)) : setQty(l.product._id, -1))} className="grid h-7 w-7 place-items-center text-slate-500 hover:bg-slate-50"><Minus className="h-3.5 w-3.5" /></button>
+                    <span className="w-7 text-center text-sm tabular-nums">{l.qty}</span>
+                    <button aria-label="One more" onClick={() => setQty(l.product._id, 1)} className="grid h-7 w-7 place-items-center text-slate-500 hover:bg-slate-50"><Plus className="h-3.5 w-3.5" /></button>
+                  </div>
+                  <div className="w-[4.75rem] text-right text-sm font-medium tabular-nums">{money(l.product.price * l.qty - (pr?.promoDiscount || 0))}</div>
+                </div>
+              );
+            })}
+            {!cart.length && (
+              <div className="flex h-full min-h-48 flex-col items-center justify-center text-center text-sm text-slate-500">
+                <ShoppingBasket className="h-8 w-8 text-slate-300" strokeWidth={1.5} />
+                <p className="mt-3">Scan a barcode or tap a product to start a sale</p>
+              </div>
+            )}
           </div>
 
           {cart.length > 0 && (
-            <div className="mt-3 space-y-3 border-t border-slate-200 pt-3">
+            <div className="space-y-3 border-t border-slate-200 px-5 py-4">
               {needsRx && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
-                  <div className="font-medium text-amber-900">Prescription items in basket</div>
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
+                  <div className="font-medium text-amber-900">Prescription items in the basket</div>
                   {user?.role !== "pharmacist" && user?.role !== "owner" ? <p className="mt-1 text-amber-800">Only a registered pharmacist can sell these. Hand over to the pharmacist or dispense from Prescriptions.</p> : (
                     <Select className="mt-2" value={rxId} onChange={(e) => setRxId(e.target.value)} aria-label="Prescription">
                       <option value="">Select verified prescription...</option>
@@ -195,43 +255,55 @@ export default function POS() {
                   )}
                 </div>
               )}
-              <div className="relative">
-                {customer ? <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"><span>{customer.name} <span className="text-slate-500">{customer.phone}</span>{customer.loyaltyPoints > 0 && <Badge tone="violet">{customer.loyaltyPoints} pts</Badge>}</span><button className="text-xs text-brand-700" onClick={() => setCustomer(null)}>Remove</button></div> : (
-                  <>
-                    <Input placeholder="Attach customer (optional)" value={custQ} onChange={(e) => setCustQ(e.target.value)} />
-                    {custList.length > 0 && <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">{custList.map((c) => <button key={c._id} onClick={() => { setCustomer(c); setCustQ(""); setCustList([]); }} className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50">{c.name} <span className="text-slate-500">{c.phone}</span>{c.creditLimit > 0 && <Badge tone="blue">Credit</Badge>}</button>)}</div>}
-                  </>
-                )}
-              </div>
-              <div className="grid grid-cols-2 items-end gap-3">
-                <Input label={`Discount (max ${money(limit)})`} type="number" min={0} step="0.01" value={discount || ""} onChange={(e) => setDiscount(Number(e.target.value))} />
-                <div className="text-right text-sm text-slate-600"><div>Subtotal {money(subtotal)}</div>{promoTotal > 0 && <div className="text-emerald-700">Promotions -{money(promoTotal)}</div>}{tax > 0 && <div>Tax {money(tax)}</div>}</div>
-              </div>
-              <div className="flex items-baseline justify-between border-t border-slate-200 pt-3"><span className="font-medium">Total</span><span className="text-2xl font-semibold tabular-nums tracking-tight">{money(total)}</span></div>
+
+              <dl className="space-y-1 text-sm">
+                <div className="flex justify-between text-slate-600"><dt>Subtotal · {units} item{units > 1 ? "s" : ""}</dt><dd className="tabular-nums">{money(subtotal)}</dd></div>
+                {promoTotal > 0 && <div className="flex justify-between text-emerald-700"><dt>Promotions</dt><dd className="tabular-nums">-{money(promoTotal)}</dd></div>}
+                <div className="flex items-center justify-between text-slate-600">
+                  <dt>Discount <span className="text-xs text-slate-400">(up to {money(limit)})</span></dt>
+                  <dd><input type="number" min={0} step="0.01" aria-label="Discount" value={discount || ""} placeholder="0.00" onChange={(e) => setDiscount(Number(e.target.value))} className="w-24 rounded border border-slate-200 px-2 py-0.5 text-right text-sm tabular-nums outline-none focus:border-slate-400" /></dd>
+                </div>
+                {tax > 0 && <div className="flex justify-between text-slate-600"><dt>Tax</dt><dd className="tabular-nums">{money(tax)}</dd></div>}
+                <div className="flex items-baseline justify-between pt-1"><dt className="font-medium">Total</dt><dd className="text-2xl font-semibold tabular-nums tracking-tight">{money(total)}</dd></div>
+              </dl>
 
               <div className="space-y-2">
                 {pays.map((p, i) => (
-                  <div key={i} className="flex gap-2">
-                    <select value={p.method} onChange={(e) => setPays(pays.map((x, k) => (k === i ? { ...x, method: e.target.value } : x)))} className="rounded-lg border border-slate-300 px-2 py-2 text-sm" aria-label="Payment method">
-                      <option value="cash">Cash</option><option value="momo">Mobile money</option><option value="card">Card</option>{customer?.creditLimit > 0 && <option value="credit">Account credit</option>}{customer?.loyaltyPoints > 0 && online && <option value="loyalty">Loyalty points</option>}
-                    </select>
-                    <input type="number" min={0} step="0.01" placeholder="Amount" value={p.amount} onChange={(e) => setPays(pays.map((x, k) => (k === i ? { ...x, amount: e.target.value } : x)))} className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm tabular-nums" />
-                    <Button size="sm" variant="outline" onClick={() => setPays(pays.map((x, k) => (k === i ? { ...x, amount: String(Math.max(0, total - paid + (Number(x.amount) || 0)).toFixed(2)) } : x)))}>Rest</Button>
+                  <div key={i} className="space-y-2">
+                    <div className="grid grid-flow-col gap-1 rounded-md bg-slate-100 p-1" role="radiogroup" aria-label="Payment method">
+                      {methods.map(([v, l]) => <button key={v} role="radio" aria-checked={p.method === v} onClick={() => setPay(i, { method: v })} className={cn("rounded px-2 py-1.5 text-sm font-medium transition", p.method === v ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900")}>{l}</button>)}
+                    </div>
+                    <div className="flex gap-2">
+                      <input type="number" min={0} step="0.01" placeholder="Amount received" aria-label="Amount received" value={p.amount} onChange={(e) => setPay(i, { amount: e.target.value })} className="h-10 min-w-0 flex-1 rounded-md border border-slate-300 px-3 text-sm tabular-nums outline-none focus:border-slate-500" />
+                      <Button variant="outline" onClick={() => setPay(i, { amount: String(Math.max(0, total - paid + (Number(p.amount) || 0)).toFixed(2)) })}>Exact</Button>
+                      {pays.length > 1 && <button aria-label="Remove payment" onClick={() => setPays(pays.filter((_, k) => k !== i))} className="px-1 text-slate-400 hover:text-slate-700"><X className="h-4 w-4" /></button>}
+                    </div>
+                    {p.method === "cash" && i === pays.length - 1 && !p.amount && (
+                      <div className="flex flex-wrap gap-1.5">{[20, 50, 100, 200].filter((n) => n >= total).map((n) => <button key={n} onClick={() => setPay(i, { amount: String(n) })} className="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:border-slate-400">GH₵ {n}</button>)}</div>
+                    )}
                   </div>
                 ))}
-                <div className="flex items-center justify-between text-sm"><button onClick={() => setPays([...pays, { method: "momo", amount: "" }])} className="text-brand-700 hover:underline">+ Split payment</button>{change > 0 && <span className="font-medium text-emerald-700">Change {money(change)}</span>}</div>
+                <div className="flex items-center justify-between text-sm">
+                  <button onClick={() => setPays([...pays, { method: "momo", amount: "" }])} className="text-slate-600 underline-offset-4 hover:underline">Split payment</button>
+                  {change > 0 ? <span className="font-medium">Change <span className="tabular-nums">{money(change)}</span></span> : paid > 0 && paid + 0.001 < total ? <span className="text-amber-700">Still to pay <span className="tabular-nums">{money(total - paid)}</span></span> : null}
+                </div>
               </div>
               <ErrorNote error={error} />
               <div className="flex gap-2">
-                <Button variant="outline" onClick={hold}><PauseCircle className="h-4 w-4" />Hold</Button>
-                <Button className="flex-1" size="lg" loading={busy} disabled={paid + 0.001 < total || (needsRx && !rxId)} onClick={pay}>Charge {money(total)}</Button>
+                <Button variant="outline" onClick={hold} title="Hold this sale"><PauseCircle className="h-4 w-4" />Hold</Button>
+                <Button className="h-12 flex-1 text-base" loading={busy} disabled={paid + 0.001 < total || (needsRx && !rxId)} onClick={pay}>Charge {money(total)}</Button>
               </div>
             </div>
           )}
-          {!cart.length && <ErrorNote error={error} />}
-        </Card>
+          {!cart.length && error && <div className="px-5 pb-4"><ErrorNote error={error} /></div>}
+        </aside>
       </div>
 
+      {cart.length > 0 && (
+        <a href="#basket" className="fixed inset-x-4 bottom-4 z-20 flex items-center justify-between rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white shadow-lg lg:hidden">
+          <span>{units} item{units > 1 ? "s" : ""} in basket</span><span className="tabular-nums">{money(total)}</span>
+        </a>
+      )}
       <Modal open={shiftModal === "open"} onClose={() => setShiftModal(null)} title="Open shift">
         <Input label="Opening cash float (GH₵)" type="number" value={float} onChange={(e) => setFloat(e.target.value)} />
         <Button className="mt-4 w-full" onClick={openShift}>Open shift</Button>
@@ -242,7 +314,7 @@ export default function POS() {
         <Button className="mt-4 w-full" onClick={closeShift}>Close shift</Button>
       </Modal>
       <Modal open={heldOpen} onClose={() => setHeldOpen(false)} title="Held sales">
-        {(held.data || []).map((h: any) => <div key={h._id} className="flex items-center justify-between border-b border-slate-100 py-2 text-sm"><span>{h.items.length} item(s) · {dateTime(h.createdAt)}</span><Button size="sm" onClick={() => recall(h)}>Recall</Button></div>)}
+        {(held.data || []).map((h: any) => <div key={h._id} className="flex items-center justify-between border-b border-slate-100 py-2.5 text-sm"><span className="flex items-center gap-2"><Clock className="h-4 w-4 text-slate-400" />{h.items.map((i: any) => `${i.qty} x ${i.name}`).join(", ")} <span className="text-slate-500">· {dateTime(h.createdAt)}</span></span><Button size="sm" onClick={() => recall(h)}>Recall</Button></div>)}
         {!held.data?.length && <p className="py-4 text-center text-sm text-slate-500">No held sales</p>}
       </Modal>
       <Modal open={!!receipt} onClose={() => setReceipt(null)} title="Sale complete">
