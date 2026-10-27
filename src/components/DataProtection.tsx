@@ -57,7 +57,7 @@ function Retention({ call, org, refresh, isOwner, canEdit }: any) {
         <Input label="Prescription scans (years, min 2)" type="number" min={2} disabled={!canEdit} value={r.prescriptionImagesYears} onChange={(e) => setR({ ...r, prescriptionImagesYears: e.target.value })} />
         <Input label="Anonymise customers inactive for (years)" type="number" min={1} disabled={!canEdit} value={r.inactiveCustomerYears} onChange={(e) => setR({ ...r, inactiveCustomerYears: e.target.value })} />
       </div>
-      {canEdit && <div className="mt-3 flex flex-wrap items-center gap-3"><Button onClick={save}>Save and preview</Button>{isOwner && <Button variant="danger" onClick={run}>Apply retention now</Button>}</div>}
+      {canEdit && <div className="mt-3 flex flex-wrap items-center gap-3"><Button onClick={save}>Save and preview</Button>{isOwner && <Button variant="outline" className="text-red-700" onClick={run}>Apply retention now</Button>}</div>}
       {preview && <p className="mt-3 text-sm">Would delete <b>{preview.notificationsDeleted}</b> messages, remove <b>{preview.prescriptionImagesRemoved}</b> prescription scans and anonymise <b>{preview.customersAnonymised}</b> inactive customers (those with records that must be kept are skipped).</p>}
       {ran && <p className="mt-3 text-sm text-emerald-700">Done: {ran.notificationsDeleted} messages deleted, {ran.prescriptionImagesRemoved} scans removed, {ran.customersAnonymised} customers anonymised, {ran.customersKept} kept because records must be retained.</p>}
       <ErrorNote error={err} />
