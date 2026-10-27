@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
-import { BellRing, Check } from "lucide-react";
+import { BellRing, Bike, Check, MapPin, Phone } from "lucide-react";
+import ProductImage from "@/components/ProductImage";
 import { api, dateTime, money } from "@/lib/api";
 import { useShopAuth } from "@/lib/shop";
 import { useLoad } from "@/lib/useLoad";
@@ -9,6 +10,98 @@ import { Badge, Button, Card, ErrorNote, Input, Spinner, StatusBadge } from "@/c
 import { ShopFooter, ShopHeader } from "@/components/ShopChrome";
 
 const STEPS = ["received", "approved", "packed", "out_for_delivery", "delivered"];
+const STEP_LABEL = ["Received", "Approved", "Packed", "On the way", "Delivered"];
+const DONE = ["delivered", "collected", "cancelled", "rejected", "failed", "refunded"];
+const PAY: Record<string, string> = { momo: "Mobile money", card: "Card", cod: "Pay on delivery", cash: "Cash" };
+const payText = (p: any) => `${PAY[p.method] || p.method}${p.status === "paid" ? " · Paid" : p.status === "pending" ? " · Not paid yet" : p.status ? ` · ${p.status}` : ""}`;
+
+function Items({ o }: { o: any }) {
+  return (
+    <ul className="mt-4 space-y-2">
+      {o.items.map((i: any, k: number) => (
+        <li key={k} className="flex items-center gap-3 text-sm">
+          <ProductImage product={{ brand: i.name, imageUrl: i.imageUrl }} size="xs" className="h-9 w-9 shrink-0 rounded-md border border-slate-200" />
+          <span className="flex-1 text-slate-800">{i.name}{i.requiresRx && <span className="ml-2"><Badge tone="amber">Prescription</Badge></span>}</span>
+          <span className="text-slate-500 tabular-nums">× {i.qty}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Summary({ o }: { o: any }) {
+  return (
+    <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-t border-slate-100 pt-3 text-sm">
+      <span className="text-slate-500">{payText(o.payment)}{o.payment.refundedAmount > 0 && ` · Refunded ${money(o.payment.refundedAmount)}`}</span>
+      <span>{o.discount > 0 && <span className="mr-2 text-xs text-emerald-700">Saved {money(o.discount)}</span>}<b className="text-base tabular-nums">{money(o.total)}</b></span>
+    </div>
+  );
+}
+
+function CurrentOrder({ o, msg, setMsg, send, cancel }: { o: any; msg: string; setMsg: (v: string) => void; send: () => void; cancel: () => void }) {
+  const idx = STEPS.indexOf(o.status === "pending_review" ? "received" : o.status === "ready" ? "packed" : o.status);
+  const out = o.status === "out_for_delivery";
+  const loc = o.rider?.location;
+  return (
+    <Card className="mb-4 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div><div className="font-semibold text-slate-900">Order {o.orderNo}</div><div className="text-xs text-slate-500">{dateTime(o.createdAt)} · {o.branch?.name}</div></div>
+        <StatusBadge s={o.status} />
+      </div>
+      <ol className="mt-5 grid grid-cols-5" aria-label="Order progress">
+        {STEPS.map((s, i) => (
+          <li key={s} className="relative flex flex-col items-center text-center">
+            {i > 0 && <span className={`absolute right-1/2 top-3 h-0.5 w-full -translate-y-1/2 ${i <= idx ? "bg-brand-700" : "bg-slate-200"}`} />}
+            <span className={`relative z-10 grid h-6 w-6 place-items-center rounded-full text-xs ${i < idx ? "bg-brand-700 text-white" : i === idx ? "bg-brand-700 text-white ring-4 ring-brand-100" : "border border-slate-300 bg-white text-slate-400"}`}>{i < idx ? <Check className="h-3.5 w-3.5" /> : i + 1}</span>
+            <span className={`mt-1.5 text-[11px] sm:text-xs ${i === idx ? "font-medium text-slate-900" : "text-slate-500"}`}>{STEP_LABEL[i]}</span>
+          </li>
+        ))}
+      </ol>
+      {o.status === "pending_review" && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">A pharmacist is checking your prescription. We will text you when it is approved.</p>}
+      {o.payment.status === "pending" && o.payment.authUrl && <div className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Payment not completed. We are holding your items until {dateTime(o.reservedUntil)}. <a className="font-semibold underline" href={o.payment.authUrl}>Pay now</a></div>}
+      {out && (
+        <div className="mt-5 rounded-lg border border-brand-100 bg-brand-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-white text-brand-700"><Bike className="h-5 w-5" /></span>
+              <div><div className="font-medium text-slate-900">{o.rider?.name || "Your rider"} is on the way</div>{loc && <div className="text-xs text-slate-500">Last seen {dateTime(loc.at)}</div>}</div>
+            </div>
+            <div className="text-right"><div className="text-xs text-slate-500">Delivery code</div><div className="font-mono text-2xl font-semibold tracking-widest text-slate-900">{o.deliveryCode}</div></div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {o.rider?.phone && <a href={`tel:${o.rider.phone}`} className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"><Phone className="h-4 w-4" />Call rider</a>}
+            {loc && <a target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${loc.lat}&mlon=${loc.lng}#map=16/${loc.lat}/${loc.lng}`} className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"><MapPin className="h-4 w-4" />View on map</a>}
+            {o.rider?.trackingUrl && <a target="_blank" rel="noreferrer" href={o.rider.trackingUrl} className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50">Courier tracking</a>}
+          </div>
+          <p className="mt-2 text-xs text-slate-500">Give the rider this code when your order arrives.</p>
+        </div>
+      )}
+      <Items o={o} />
+      <Summary o={o} />
+      {o.messages?.length > 0 && <div className="mt-4 space-y-2">{o.messages.map((m: any, i: number) => <div key={i} className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${m.from === "pharmacist" ? "bg-slate-100 text-slate-800" : "ml-auto bg-brand-700 text-white"}`}><div className="text-[11px] opacity-70">{m.from === "pharmacist" ? "Pharmacist" : "You"}</div>{m.text}</div>)}</div>}
+      <div className="mt-4 flex gap-2">
+        <div className="flex-1"><Input placeholder="Message the pharmacist" value={msg} onChange={(e) => setMsg(e.target.value)} /></div>
+        <Button variant="outline" disabled={!msg} onClick={send}>Send</Button>
+        {["received", "pending_review", "approved"].includes(o.status) && <Button variant="ghost" onClick={cancel}>Cancel order</Button>}
+      </div>
+    </Card>
+  );
+}
+
+function PastOrder({ o }: { o: any }) {
+  const dead = ["cancelled", "rejected", "failed"].includes(o.status);
+  return (
+    <Card className="mb-3 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div><div className="font-semibold text-slate-900">Order {o.orderNo}</div><div className="text-xs text-slate-500">{dateTime(o.createdAt)} · {o.branch?.name}</div></div>
+        <StatusBadge s={o.status} />
+      </div>
+      {o.reviewNote && dead && <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">{o.reviewNote}</p>}
+      <Items o={o} />
+      <Summary o={o} />
+    </Card>
+  );
+}
 
 export default function MyOrders({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -38,7 +131,10 @@ export default function MyOrders({ params }: { params: Promise<{ slug: string }>
     <div className="min-h-screen bg-[#fafafa]">
       <ShopHeader shop={shop.data} slug={slug} right={<Link href={`/shop/${slug}`} className="text-sm font-medium text-brand-700">Continue shopping</Link>} />
       <main className="mx-auto max-w-3xl px-4 py-8">
-        <div className="mb-6 flex items-center justify-between"><h1 className="text-2xl font-semibold tracking-tight">My orders{auth.customer?.loyaltyPoints > 0 && <span className="ml-3 align-middle text-sm font-medium text-slate-700">{auth.customer.loyaltyPoints} loyalty points</span>}</h1>{auth.token && <span className="space-x-4 text-sm text-slate-500"><button onClick={exportData} className="underline">Download my data</button><button onClick={erasure} className="underline">Erase my data</button></span>}</div>
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
+          <div><h1 className="text-2xl font-semibold tracking-tight">My orders</h1>{auth.customer?.name && <p className="text-sm text-slate-500">Signed in as {auth.customer.name}</p>}</div>
+          {auth.customer?.loyaltyPoints > 0 && <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-right"><div className="text-lg font-semibold leading-tight tabular-nums">{auth.customer.loyaltyPoints}</div><div className="text-xs text-slate-500">loyalty points</div></div>}
+        </div>
         {!auth.ready ? <Spinner /> : !auth.token ? <p className="text-slate-600">Please <Link href={`/shop/${slug}`} className="text-brand-700 underline">sign in</Link> from the store page to see your orders.</p> : (
           <>
             <ErrorNote error={err || orders.error} />
@@ -66,34 +162,18 @@ export default function MyOrders({ params }: { params: Promise<{ slug: string }>
                 </div>
               </Card>
             )}
-            {orders.loading && !orders.data ? <Spinner /> : (orders.data || []).map((o: any) => {
-              const idx = STEPS.indexOf(o.status === "pending_review" ? "received" : o.status);
-              const dead = ["cancelled", "rejected", "failed"].includes(o.status);
+            {orders.loading && !orders.data ? <Spinner /> : (["current", "past"] as const).map((group) => {
+              const list = (orders.data || []).filter((o: any) => (group === "past") === DONE.includes(o.status));
+              if (!list.length) return null;
               return (
-                <Card key={o._id} className="mb-4 p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-2"><div><span className="font-mono text-sm">{o.orderNo}</span> <span className="text-xs text-slate-500">{dateTime(o.createdAt)} · {o.branch?.name}</span></div><StatusBadge s={o.status} /></div>
-                  <ul className="mt-3 text-sm text-slate-700">{o.items.map((i: any, k: number) => <li key={k}>{i.qty} × {i.name} {i.requiresRx && <Badge tone="amber">Rx</Badge>}</li>)}</ul>
-                  <div className="mt-2 text-sm text-slate-600">{o.discount > 0 && <span className="text-emerald-700">You saved {money(o.discount)} · </span>}Total <b>{money(o.total)}</b>{o.payment.refundedAmount > 0 && <span> · refunded {money(o.payment.refundedAmount)}</span>} · {o.payment.method} ({o.payment.status})</div>
-                  {o.status === "pending_review" && <p className="mt-2 rounded bg-amber-50 p-2 text-sm text-amber-900">A pharmacist is reviewing your prescription.</p>}
-                  {o.reviewNote && dead && <p className="mt-2 rounded bg-red-50 p-2 text-sm text-red-800">{o.reviewNote}</p>}
-                  {!dead && (
-                    <ol className="mt-4 flex items-center" aria-label="Order progress">{STEPS.map((s, i) => (
-                      <li key={s} className="flex flex-1 items-center last:flex-none"><span className={`grid h-6 w-6 place-items-center rounded-full text-xs ${i <= idx ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-500"}`}>{i < idx ? <Check className="h-3.5 w-3.5" /> : i + 1}</span>{i < STEPS.length - 1 && <span className={`mx-1 h-0.5 flex-1 ${i < idx ? "bg-slate-900" : "bg-slate-200"}`} />}</li>))}</ol>
-                  )}
-                  {!dead && <div className="mt-1 flex justify-between text-[10px] text-slate-500 sm:text-xs"><span>Received</span><span>Approved</span><span>Packed</span><span>Out for delivery</span><span>Delivered</span></div>}
-                  {o.payment.status === "pending" && o.payment.authUrl && !dead && <div className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Payment not completed. We are holding your items until {dateTime(o.reservedUntil)}. <a className="font-semibold underline" href={o.payment.authUrl}>Pay now</a></div>}
-                  {o.status === "out_for_delivery" && o.rider?.location && <div className="mt-2 text-sm">Rider last seen {dateTime(o.rider.location.at)} · <a className="font-medium text-brand-700 underline" target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${o.rider.location.lat}&mlon=${o.rider.location.lng}#map=16/${o.rider.location.lat}/${o.rider.location.lng}`}>View on map</a></div>}
-                  {o.status === "out_for_delivery" && o.rider?.phone && <div className="mt-1 text-sm">Call rider: <a className="text-brand-700 underline" href={`tel:${o.rider.phone}`}>{o.rider.phone}</a></div>}
-                  {o.status === "out_for_delivery" && o.rider?.trackingUrl && <div className="mt-1 text-sm"><a className="text-brand-700 underline" target="_blank" rel="noreferrer" href={o.rider.trackingUrl}>Courier tracking</a></div>}
-                  {o.status === "out_for_delivery" && <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-900">With {o.rider?.name}. Give the rider this code on arrival: <b className="font-mono text-lg">{o.deliveryCode}</b></div>}
-                  {o.messages?.map((m: any, i: number) => <p key={i} className="mt-2 text-sm"><b>{m.from === "pharmacist" ? "Pharmacist" : "You"}:</b> {m.text}</p>)}
-                  {!dead && o.status !== "delivered" && (
-                    <div className="mt-3 flex gap-2"><Input placeholder="Message the pharmacist" value={msg[o._id] || ""} onChange={(e) => setMsg({ ...msg, [o._id]: e.target.value })} /><Button variant="outline" disabled={!msg[o._id]} onClick={() => send(o)}>Send</Button>{["received", "pending_review", "approved"].includes(o.status) && <Button variant="ghost" onClick={() => cancel(o)}>Cancel</Button>}</div>
-                  )}
-                </Card>
+                <section key={group} className="mb-8">
+                  <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">{group === "current" ? "In progress" : "Past orders"}</h2>
+                  {list.map((o: any) => group === "current" ? <CurrentOrder key={o._id} o={o} msg={msg[o._id] || ""} setMsg={(v) => setMsg({ ...msg, [o._id]: v })} send={() => send(o)} cancel={() => cancel(o)} /> : <PastOrder key={o._id} o={o} />)}
+                </section>
               );
             })}
-            {orders.data && !orders.data.length && <p className="text-slate-600">No orders yet.</p>}
+            {orders.data && !orders.data.length && <Card className="p-8 text-center text-slate-600">No orders yet. <Link href={`/shop/${slug}`} className="font-medium text-brand-700 underline">Start shopping</Link></Card>}
+            <div className="mt-10 border-t border-slate-200 pt-4 text-xs text-slate-500">Your data: <button onClick={exportData} className="underline hover:text-slate-800">download a copy</button> · <button onClick={erasure} className="underline hover:text-slate-800">ask us to erase it</button></div>
           </>
         )}
       </main>
