@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
-import { Clock, FileText, MapPin, Minus, Plus, Search, ShieldCheck, ShoppingBag, Smartphone, Trash2, Truck, Upload, User } from "lucide-react";
+import { Banknote, Clock, CreditCard, FileText, MapPin, Minus, Plus, Search, ShieldCheck, ShoppingBag, Smartphone, Store, Trash2, Truck, Upload, User } from "lucide-react";
 import { api, money, store } from "@/lib/api";
 import { useShopAuth } from "@/lib/shop";
 import { useLoad } from "@/lib/useLoad";
@@ -201,49 +201,99 @@ function Cart({ open, onClose, cart, setCart, branch, shop, slug, auth, needLogi
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   };
 
+  const PAY: [string, string, string, any][] = [
+    ["momo", "Mobile money", "MTN, Telecel or AirtelTigo", Smartphone],
+    ["card", "Card", "Visa or Mastercard", CreditCard],
+    ...(shop.codEnabled && fulfilment === "delivery" ? [["cod", "Pay on delivery", "Cash or mobile money to the rider", Banknote] as [string, string, string, any]] : []),
+  ];
+  const missing = !branch?.online ? "This branch isn't taking online orders" : needsRx && !image && !refill ? "Add your prescription" : fulfilment === "delivery" && !zone ? "Choose a delivery area" : fulfilment === "delivery" && !line.trim() ? "Add your street address" : null;
+  const items = cart.reduce((s: number, i: Item) => s + i.qty, 0);
+  const head = (n: number, t: string) => <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900"><span className="grid h-5 w-5 place-items-center rounded-full bg-slate-900 text-[11px] font-medium text-white">{n}</span>{t}</h3>;
+  const pick = (on: boolean) => `flex flex-col justify-start rounded-lg border p-3 text-left text-sm transition ${on ? "border-slate-900 ring-1 ring-slate-900" : "border-slate-200 hover:border-slate-300"}`;
+
   return (
-    <Modal open={open} onClose={onClose} title="Your cart" wide>
-      {!cart.length ? <p className="py-8 text-center text-slate-500">Your cart is empty.</p> : (
-        <div className="space-y-5">
-          <div className="divide-y divide-slate-100">{cart.map((i: Item) => (
-            <div key={i.product._id} className="flex items-center gap-3 py-2 text-sm">
-              <ProductImage product={i.product} size="sm" className="h-12 w-12 shrink-0 rounded-md border border-slate-200" />
-              <div className="min-w-0 flex-1"><div className="truncate font-medium">{i.product.brand} {i.product.strength}</div>{i.product.requiresRx && <Badge tone="amber">Prescription</Badge>}</div>
-              <div className="flex items-center gap-1"><button aria-label="Less" onClick={() => set(i.product._id, -1)} className="rounded border p-1"><Minus className="h-3.5 w-3.5" /></button><span className="w-6 text-center">{i.qty}</span><button aria-label="More" onClick={() => set(i.product._id, 1)} className="rounded border p-1"><Plus className="h-3.5 w-3.5" /></button></div>
-              <div className="w-20 text-right tabular-nums">{money(i.product.price * i.qty)}</div>
-              <button aria-label="Remove" onClick={() => setCart(cart.filter((x: Item) => x !== i))} className="text-slate-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
-            </div>))}</div>
+    <Modal open={open} onClose={onClose} title={cart.length ? "Checkout" : "Your cart"} xl>
+      {!cart.length ? (
+        <div className="py-12 text-center"><ShoppingBag className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-3 font-medium">Your cart is empty</p><p className="text-sm text-slate-500">Add medicines from the store to get started.</p><Button className="mt-4" variant="outline" onClick={onClose}>Keep shopping</Button></div>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+          <div className="min-w-0 space-y-7">
+            <section>
+              {head(1, `Your items (${items})`)}
+              <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                {cart.map((i: Item) => (
+                  <div key={i.product._id} className="flex items-center gap-3 p-3 text-sm">
+                    <ProductImage product={i.product} size="sm" className="h-14 w-14 shrink-0 rounded-md border border-slate-200" />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium leading-snug text-slate-900">{shortName(i.product)}</div>
+                      <div className="text-xs text-slate-500">{money(i.product.price)} each</div>
+                      {i.product.requiresRx && <div className="mt-0.5 flex items-center gap-1 text-xs text-amber-700"><FileText className="h-3 w-3" />Prescription needed</div>}
+                    </div>
+                    <div className="flex items-center rounded-md border border-slate-300"><button aria-label="One less" onClick={() => (i.qty === 1 ? setCart(cart.filter((x: Item) => x !== i)) : set(i.product._id, -1))} className="p-1.5 text-slate-600 hover:bg-slate-50">{i.qty === 1 ? <Trash2 className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}</button><span className="w-6 text-center tabular-nums">{i.qty}</span><button aria-label="One more" onClick={() => set(i.product._id, 1)} className="p-1.5 text-slate-600 hover:bg-slate-50"><Plus className="h-3.5 w-3.5" /></button></div>
+                    <div className="hidden w-20 text-right font-medium tabular-nums sm:block">{money(i.product.price * i.qty)}</div>
+                  </div>
+                ))}
+              </div>
+              {needsRx && (
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
+                  <div className="flex items-center gap-2 font-medium text-amber-900"><FileText className="h-4 w-4" />Your prescription</div>
+                  <p className="mt-0.5 text-amber-800">A registered pharmacist checks it before your order is packed. We'll text you if anything needs changing.</p>
+                  {verifiedRx.length > 0 && <div className="mt-3"><Select aria-label="Use a previous prescription" value={refill} onChange={(e) => setRefill(e.target.value)}><option value="">Upload a new prescription</option>{verifiedRx.map((r: any) => <option key={r._id} value={r._id}>Refill {r.rxNo} ({r.items.map((x: any) => x.name).join(", ")})</option>)}</Select></div>}
+                  {!refill && (image
+                    ? <div className="mt-3 flex items-center gap-3 rounded-md bg-white p-2"><img src={image} alt="Your prescription" className="h-14 w-14 rounded border object-cover" /><span className="flex-1 text-slate-700">Prescription attached</span><label className="cursor-pointer text-sm font-medium text-slate-700 underline">Change<input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} /></label></div>
+                    : <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-md border-2 border-dashed border-amber-300 bg-white p-4 text-slate-700 hover:border-amber-400"><Upload className="h-5 w-5" />Take a photo or upload your prescription<input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} /></label>)}
+                </div>
+              )}
+            </section>
 
-          {needsRx && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
-              <div className="font-medium text-amber-900">Prescription required</div>
-              <p className="text-amber-800">A pharmacist will review it before your order is packed.</p>
-              {verifiedRx.length > 0 && <Select className="mt-2" value={refill} onChange={(e) => setRefill(e.target.value)} aria-label="Refill a previous prescription"><option value="">Upload a new prescription</option>{verifiedRx.map((r: any) => <option key={r._id} value={r._id}>Refill {r.rxNo} ({r.items.map((x: any) => x.name).join(", ")})</option>)}</Select>}
-              {!refill && <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-amber-400 bg-white p-3 text-slate-700"><Upload className="h-5 w-5" />{image ? "Prescription attached (tap to change)" : "Upload a photo or PDF of your prescription"}<input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} /></label>}
-              {image && !refill && <img src={image} alt="Your prescription" className="mt-2 max-h-32 rounded border" />}
-            </div>
-          )}
+            <section>
+              {head(2, "Delivery or pick up")}
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button type="button" onClick={() => setFulfilment("delivery")} className={pick(fulfilment === "delivery")}><div className="flex items-center gap-2 font-medium"><Truck className="h-4 w-4" />Deliver to me</div><div className="mt-0.5 text-xs text-slate-500">{branch?.deliveryZones?.length ? `From ${money(Math.min(...branch.deliveryZones.map((x: any) => x.fee)))}` : "To your door"}</div></button>
+                <button type="button" onClick={() => { setFulfilment("pickup"); if (method === "cod") setMethod("momo"); }} className={pick(fulfilment === "pickup")}><div className="flex items-center gap-2 font-medium"><Store className="h-4 w-4" />Pick up in store</div><div className="mt-0.5 text-xs text-slate-500">Free · {branch?.name}</div></button>
+              </div>
+              {fulfilment === "delivery" ? (
+                <div className="mt-4 space-y-3">
+                  <div className="text-sm font-medium text-slate-700">Delivery area</div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {(branch?.deliveryZones || []).map((x: any) => <button key={x.name} type="button" onClick={() => setZone(x.name)} className={pick(zone === x.name)}><div className="flex justify-between font-medium"><span>{x.name}</span><span className="tabular-nums">{money(x.fee)}</span></div><div className="text-xs text-slate-500">About {x.etaMins} minutes</div></button>)}
+                  </div>
+                  <Input label="Street address or landmark" placeholder="e.g. House 22, Ridge Road, near the church" value={line} onChange={(e) => setLine(e.target.value)} autoComplete="street-address" />
+                  <div className="sm:w-1/2"><Input label="GhanaPost digital address (optional)" placeholder="GA-123-4567" value={digital} onChange={(e) => setDigital(e.target.value)} /></div>
+                </div>
+              ) : branch && (
+                <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600"><div className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />{branch.address}</div>{branch.openingHours && <div className="mt-1 flex gap-2"><Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />{branch.openingHours}</div>}<p className="mt-2 text-xs">We'll text you when it's ready. Bring the text with you.</p></div>
+              )}
+            </section>
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            <button onClick={() => setFulfilment("delivery")} className={`rounded-md border p-3 text-left text-sm ${fulfilment === "delivery" ? "border-slate-900" : "border-slate-300"}`}><div className="font-medium">Delivery</div><div className="text-slate-500">To your door</div></button>
-            <button onClick={() => { setFulfilment("pickup"); if (method === "cod") setMethod("momo"); }} className={`rounded-md border p-3 text-left text-sm ${fulfilment === "pickup" ? "border-slate-900" : "border-slate-300"}`}><div className="font-medium">Pick up in store</div><div className="text-slate-500">{branch?.name}</div></button>
+            <section>
+              {head(3, "Payment")}
+              <div className="grid gap-2 sm:grid-cols-3">
+                {PAY.map(([v, l, d, Icon]) => <button key={v} type="button" onClick={() => setMethod(v)} className={pick(method === v)}><div className="flex items-center gap-2 font-medium"><Icon className="h-4 w-4" />{l}</div><div className="mt-0.5 text-xs text-slate-500">{d}</div></button>)}
+              </div>
+              {method !== "cod" && <p className="mt-2 text-xs text-slate-500">Card and mobile money details go straight to the payment provider. The pharmacy never stores them.</p>}
+            </section>
           </div>
-          {fulfilment === "delivery" && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Select label="Delivery zone" value={zone} onChange={(e) => setZone(e.target.value)}><option value="">Choose...</option>{branch?.deliveryZones?.map((x: any) => <option key={x.name} value={x.name}>{x.name} - {money(x.fee)} (~{x.etaMins} min)</option>)}</Select>
-              <Input label="Ghana digital address (optional)" placeholder="GA-123-4567" value={digital} onChange={(e) => setDigital(e.target.value)} />
-              <div className="sm:col-span-2"><Input label="Street address / landmark" value={line} onChange={(e) => setLine(e.target.value)} /></div>
-            </div>
-          )}
-          <div>
-            <div className="mb-1 text-sm font-medium">Payment</div>
-            <div className="flex flex-wrap gap-2">{[["momo", "Mobile money"], ["card", "Card"], ...(shop.codEnabled && fulfilment === "delivery" ? [["cod", "Pay on delivery"]] : [])].map(([v, l]) => <button key={v} onClick={() => setMethod(v)} className={`rounded-full border px-4 py-1.5 text-sm ${method === v ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300"}`}>{l}</button>)}</div>
-            {method !== "cod" && <p className="mt-1 text-xs text-slate-500">Demo checkout: payment is simulated. Card details are never stored.</p>}
-          </div>
 
-          <div className="space-y-1 border-t border-slate-200 pt-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(subtotal)}</span></div>{tax > 0 && <div className="flex justify-between"><span>Tax</span><span>{money(tax)}</span></div>}{cart.some((i: Item) => i.product.promo) && <div className="flex justify-between text-emerald-700"><span>Promotions</span><span>applied at checkout</span></div>}{fulfilment === "delivery" && <div className="flex justify-between"><span>Delivery {z ? `(~${z.etaMins} min)` : ""}</span><span>{z ? money(fee) : "Choose zone"}</span></div>}<div className="flex justify-between text-lg font-bold"><span>Total</span><span>{money(total)}</span></div></div>
-          <ErrorNote error={err} />
-          <Button className="w-full" size="lg" loading={busy} disabled={!branch?.online || (fulfilment === "delivery" && (!zone || !line)) || (needsRx && !image && !refill)} onClick={place}>{auth.token ? `Place order · ${money(total)}` : "Sign in to place order"}</Button>
+          <aside className="lg:sticky lg:top-0 lg:self-start">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
+              <h3 className="font-semibold text-slate-900">Order summary</h3>
+              <div className="mt-3 space-y-1.5">
+                <div className="flex justify-between"><span className="text-slate-600">Items ({items})</span><span className="tabular-nums">{money(subtotal)}</span></div>
+                {tax > 0 && <div className="flex justify-between"><span className="text-slate-600">Tax</span><span className="tabular-nums">{money(tax)}</span></div>}
+                {cart.some((i: Item) => i.product.promo) && <div className="flex justify-between text-emerald-700"><span>Promotions</span><span>taken off when you order</span></div>}
+                <div className="flex justify-between"><span className="text-slate-600">{fulfilment === "delivery" ? "Delivery" : "Pick up"}</span><span className="tabular-nums">{fulfilment === "pickup" ? "Free" : z ? money(fee) : <span className="text-slate-400">Choose area</span>}</span></div>
+              </div>
+              <div className="mt-3 flex items-baseline justify-between border-t border-slate-200 pt-3"><span className="font-semibold">Total</span><span className="text-xl font-semibold tabular-nums">{money(total)}</span></div>
+              <ErrorNote error={err} />
+              <Button className="mt-4 w-full" size="lg" loading={busy} disabled={!!missing && !!auth.token} onClick={place}>{auth.token ? (method === "cod" ? "Place order" : `Pay ${money(total)}`) : "Sign in to order"}</Button>
+              {missing && auth.token && <p className="mt-2 text-center text-xs text-slate-500">{missing} to continue.</p>}
+              <ul className="mt-4 space-y-1.5 border-t border-slate-200 pt-3 text-xs text-slate-500">
+                <li className="flex gap-2"><ShieldCheck className="h-3.5 w-3.5 shrink-0 text-brand-700" />Licensed pharmacy, pharmacist-checked</li>
+                {fulfilment === "delivery" && <li className="flex gap-2"><Truck className="h-3.5 w-3.5 shrink-0 text-brand-700" />{z ? `Arrives in about ${z.etaMins} minutes` : "Track your rider live"}</li>}
+              </ul>
+            </div>
+          </aside>
         </div>
       )}
     </Modal>
