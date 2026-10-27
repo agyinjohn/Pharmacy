@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
-import { Banknote, Clock, CreditCard, FileText, MapPin, Minus, Plus, Search, ShieldCheck, ShoppingBag, Smartphone, Store, Trash2, Truck, Upload, User } from "lucide-react";
+import { Banknote, Clock, CreditCard, FileText, MapPin, Phone, Minus, Plus, Search, ShieldCheck, ShoppingBag, Smartphone, Store, Trash2, Truck, Upload, User } from "lucide-react";
 import { api, money, store } from "@/lib/api";
 import { useShopAuth } from "@/lib/shop";
 import { useLoad } from "@/lib/useLoad";
@@ -47,7 +47,6 @@ export default function Shop({ params }: { params: Promise<{ slug: string }> }) 
   const symptoms: string[] = cats.data?.symptoms || [];
   const categories: string[] = (cats.data?.categories || []).filter((c: string) => !symptoms.includes(c));
   const chip = (c: string, label = c) => <button key={c} onClick={() => setCat(c)} className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm ${cat === c ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"}`}>{label}</button>;
-  const zones = branch?.deliveryZones || [];
 
   if (shop.error) return <div className="grid min-h-screen place-items-center p-6 text-center"><div><h1 className="text-xl font-semibold">Pharmacy not found</h1><p className="mt-2 text-slate-600">Check the link, or <Link href="/" className="text-brand-700 underline">visit PharmaOne</Link>.</p></div></div>;
   if (!shop.data) return <Spinner />;
@@ -78,7 +77,7 @@ export default function Shop({ params }: { params: Promise<{ slug: string }> }) 
             {branch && <div className="mt-3 space-y-1.5 text-sm text-slate-600">
               <div className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />{branch.address}</div>
               {branch.openingHours && <div className="flex gap-2"><Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />{branch.openingHours}</div>}
-              {zones.length > 0 && <div className="flex gap-2"><Truck className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />Delivery from {money(Math.min(...zones.map((z: any) => z.fee)))}, about {Math.min(...zones.map((z: any) => z.etaMins))} min</div>}
+              <div className="flex gap-2"><Truck className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />Delivery fee agreed with you by phone</div>
             </div>}
             {branch && !branch.online && <p className="mt-3 rounded-md bg-amber-50 p-2 text-sm text-amber-900">This branch isn't taking online orders right now. Choose another branch.</p>}
           </div>
@@ -176,17 +175,16 @@ function Login({ open, onClose, auth }: { open: boolean; onClose: () => void; au
 }
 
 function Cart({ open, onClose, cart, setCart, branch, shop, slug, auth, needLogin, onPlaced }: any) {
-  const [fulfilment, setFulfilment] = useState("delivery"); const [zone, setZone] = useState(""); const [line, setLine] = useState(""); const [digital, setDigital] = useState("");
+  const [fulfilment, setFulfilment] = useState("delivery"); const [line, setLine] = useState(""); const [digital, setDigital] = useState("");
   const [method, setMethod] = useState("momo"); const [image, setImage] = useState(""); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   const [refill, setRefill] = useState("");
   const rxs = useLoad<any[]>(() => auth.call("/portal/me/prescriptions"), [auth.token], !!auth.token && open);
 
   const needsRx = cart.some((i: Item) => i.product.requiresRx);
-  const z = branch?.deliveryZones?.find((x: any) => x.name === zone);
   const subtotal = cart.reduce((s: number, i: Item) => s + i.product.price * i.qty, 0);
   const tax = cart.reduce((s: number, i: Item) => s + i.product.price * i.qty * (i.product.taxRate || 0), 0);
-  const fee = fulfilment === "delivery" ? z?.fee || 0 : 0;
-  const total = subtotal + tax + fee;
+  // Delivery is priced by the pharmacy over the phone, so the store total covers the items only.
+  const total = subtotal + tax;
   const set = (id: string, d: number) => setCart(cart.map((i: Item) => (i.product._id === id ? { ...i, qty: Math.max(1, Math.min(i.product.stock || 99, i.qty + d)) } : i)));
   const onFile = (f: File) => { const r = new FileReader(); r.onload = () => setImage(String(r.result)); r.readAsDataURL(f); };
   const verifiedRx = (rxs.data || []).filter((r: any) => ["verified", "partial"].includes(r.status));
@@ -195,7 +193,7 @@ function Cart({ open, onClose, cart, setCart, branch, shop, slug, auth, needLogi
     if (!auth.token) { needLogin(); return; }
     setBusy(true); setErr(null);
     try {
-      const o = await auth.call(`/portal/${slug}/orders`, { body: { branch: branch._id, items: cart.map((i: Item) => ({ product: i.product._id, qty: i.qty })), fulfilment, address: fulfilment === "delivery" ? { line, digitalAddress: digital, zone } : undefined, payment: { method }, prescriptionImage: needsRx && !refill ? image : undefined, refillOf: refill || undefined } });
+      const o = await auth.call(`/portal/${slug}/orders`, { body: { branch: branch._id, items: cart.map((i: Item) => ({ product: i.product._id, qty: i.qty })), fulfilment, address: fulfilment === "delivery" ? { line, digitalAddress: digital } : undefined, payment: { method }, prescriptionImage: needsRx && !refill ? image : undefined, refillOf: refill || undefined } });
       if (o.paymentUrl) { setCart([]); window.location.href = o.paymentUrl; return; }
       onPlaced(o);
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
@@ -206,7 +204,7 @@ function Cart({ open, onClose, cart, setCart, branch, shop, slug, auth, needLogi
     ["card", "Card", "Visa or Mastercard", CreditCard],
     ...(shop.codEnabled && fulfilment === "delivery" ? [["cod", "Pay on delivery", "Cash or mobile money to the rider", Banknote] as [string, string, string, any]] : []),
   ];
-  const missing = !branch?.online ? "This branch isn't taking online orders" : needsRx && !image && !refill ? "Add your prescription" : fulfilment === "delivery" && !zone ? "Choose a delivery area" : fulfilment === "delivery" && !line.trim() ? "Add your street address" : null;
+  const missing = !branch?.online ? "This branch isn't taking online orders" : needsRx && !image && !refill ? "Add your prescription" : fulfilment === "delivery" && !line.trim() ? "Add your street address" : null;
   const items = cart.reduce((s: number, i: Item) => s + i.qty, 0);
   const head = (n: number, t: string) => <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900"><span className="grid h-5 w-5 place-items-center rounded-full bg-slate-900 text-[11px] font-medium text-white">{n}</span>{t}</h3>;
   const pick = (on: boolean) => `flex flex-col justify-start rounded-lg border p-3 text-left text-sm transition ${on ? "border-slate-900 ring-1 ring-slate-900" : "border-slate-200 hover:border-slate-300"}`;
@@ -249,17 +247,14 @@ function Cart({ open, onClose, cart, setCart, branch, shop, slug, auth, needLogi
             <section>
               {head(2, "Delivery or pick up")}
               <div className="grid gap-2 sm:grid-cols-2">
-                <button type="button" onClick={() => setFulfilment("delivery")} className={pick(fulfilment === "delivery")}><div className="flex items-center gap-2 font-medium"><Truck className="h-4 w-4" />Deliver to me</div><div className="mt-0.5 text-xs text-slate-500">{branch?.deliveryZones?.length ? `From ${money(Math.min(...branch.deliveryZones.map((x: any) => x.fee)))}` : "To your door"}</div></button>
+                <button type="button" onClick={() => setFulfilment("delivery")} className={pick(fulfilment === "delivery")}><div className="flex items-center gap-2 font-medium"><Truck className="h-4 w-4" />Deliver to me</div><div className="mt-0.5 text-xs text-slate-500">Fee agreed by phone</div></button>
                 <button type="button" onClick={() => { setFulfilment("pickup"); if (method === "cod") setMethod("momo"); }} className={pick(fulfilment === "pickup")}><div className="flex items-center gap-2 font-medium"><Store className="h-4 w-4" />Pick up in store</div><div className="mt-0.5 text-xs text-slate-500">Free · {branch?.name}</div></button>
               </div>
               {fulfilment === "delivery" ? (
                 <div className="mt-4 space-y-3">
-                  <div className="text-sm font-medium text-slate-700">Delivery area</div>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {(branch?.deliveryZones || []).map((x: any) => <button key={x.name} type="button" onClick={() => setZone(x.name)} className={pick(zone === x.name)}><div className="flex justify-between font-medium"><span>{x.name}</span><span className="tabular-nums">{money(x.fee)}</span></div><div className="text-xs text-slate-500">About {x.etaMins} minutes</div></button>)}
-                  </div>
                   <Input label="Street address or landmark" placeholder="e.g. House 22, Ridge Road, near the church" value={line} onChange={(e) => setLine(e.target.value)} autoComplete="street-address" />
                   <div className="sm:w-1/2"><Input label="GhanaPost digital address (optional)" placeholder="GA-123-4567" value={digital} onChange={(e) => setDigital(e.target.value)} /></div>
+                  <div className="flex gap-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-600"><Phone className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" /><span>After you order, {branch?.name || "the pharmacy"} will call you{auth.customer?.phone ? ` on ${auth.customer.phone}` : ""} to agree the delivery fee and time. The delivery fee is paid separately, not online.</span></div>
                 </div>
               ) : branch && (
                 <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600"><div className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />{branch.address}</div>{branch.openingHours && <div className="mt-1 flex gap-2"><Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />{branch.openingHours}</div>}<p className="mt-2 text-xs">We'll text you when it's ready. Bring the text with you.</p></div>
@@ -282,15 +277,15 @@ function Cart({ open, onClose, cart, setCart, branch, shop, slug, auth, needLogi
                 <div className="flex justify-between"><span className="text-slate-600">Items ({items})</span><span className="tabular-nums">{money(subtotal)}</span></div>
                 {tax > 0 && <div className="flex justify-between"><span className="text-slate-600">Tax</span><span className="tabular-nums">{money(tax)}</span></div>}
                 {cart.some((i: Item) => i.product.promo) && <div className="flex justify-between text-emerald-700"><span>Promotions</span><span>taken off when you order</span></div>}
-                <div className="flex justify-between"><span className="text-slate-600">{fulfilment === "delivery" ? "Delivery" : "Pick up"}</span><span className="tabular-nums">{fulfilment === "pickup" ? "Free" : z ? money(fee) : <span className="text-slate-400">Choose area</span>}</span></div>
+                <div className="flex justify-between"><span className="text-slate-600">{fulfilment === "delivery" ? "Delivery" : "Pick up"}</span><span>{fulfilment === "pickup" ? "Free" : <span className="text-slate-500">Agreed by phone</span>}</span></div>
               </div>
-              <div className="mt-3 flex items-baseline justify-between border-t border-slate-200 pt-3"><span className="font-semibold">Total</span><span className="text-xl font-semibold tabular-nums">{money(total)}</span></div>
+              <div className="mt-3 flex items-baseline justify-between border-t border-slate-200 pt-3"><span className="font-semibold">{fulfilment === "delivery" ? "Total for items" : "Total"}</span><span className="text-xl font-semibold tabular-nums">{money(total)}</span></div>
               <ErrorNote error={err} />
               <Button className="mt-4 w-full" size="lg" loading={busy} disabled={!!missing && !!auth.token} onClick={place}>{auth.token ? (method === "cod" ? "Place order" : `Pay ${money(total)}`) : "Sign in to order"}</Button>
               {missing && auth.token && <p className="mt-2 text-center text-xs text-slate-500">{missing} to continue.</p>}
               <ul className="mt-4 space-y-1.5 border-t border-slate-200 pt-3 text-xs text-slate-500">
                 <li className="flex gap-2"><ShieldCheck className="h-3.5 w-3.5 shrink-0 text-brand-700" />Licensed pharmacy, pharmacist-checked</li>
-                {fulfilment === "delivery" && <li className="flex gap-2"><Truck className="h-3.5 w-3.5 shrink-0 text-brand-700" />{z ? `Arrives in about ${z.etaMins} minutes` : "Track your rider live"}</li>}
+                {fulfilment === "delivery" && <li className="flex gap-2"><Phone className="h-3.5 w-3.5 shrink-0 text-brand-700" />We'll call you to arrange delivery</li>}
               </ul>
             </div>
           </aside>

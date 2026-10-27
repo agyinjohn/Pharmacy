@@ -12,7 +12,7 @@ const features = [
   { icon: ShoppingCart, title: "Point of sale", text: "Barcode scanning, split payments across cash, mobile money and card, shifts with cash-up, promotions and loyalty points." },
   { icon: BellRing, title: "Medication reminders", text: "Patients get a text at each dose time, read from the prescription's directions, and a reminder before their refill is due." },
   { icon: Smartphone, title: "Online store", text: "Customers search, upload a prescription, pay and track their order. A pharmacist reviews anything that needs a prescription." },
-  { icon: Truck, title: "Delivery", text: "Delivery zones and fees per branch, rider or courier assignment, live updates for the customer, and proof of delivery." },
+  { icon: Truck, title: "Delivery", text: "Delivery fees agreed with the customer by phone, rider or courier assignment, live updates for the customer, and proof of delivery." },
   { icon: WifiOff, title: "Keeps working offline", text: "If the internet drops, branches keep selling, receiving stock and dispensing. Everything syncs when the connection returns." },
   { icon: BarChart3, title: "Reports", text: "Sales, margins, stock ageing, expiry, supplier balances and tax summaries across all branches. Export to Excel or PDF." },
 ];
