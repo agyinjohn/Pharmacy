@@ -8,6 +8,7 @@ import { adjustLocalStock, loadCatalog, newClientId, queueOp } from "@/lib/offli
 import { useOffline } from "@/lib/offlineContext";
 import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select } from "@/components/ui";
 import { Receipt } from "@/components/Receipt";
+import ProductImage from "@/components/ProductImage";
 
 type Line = { product: any; qty: number };
 const DISCOUNT_LIMIT: Record<string, number> = { cashier: 0.05, pharmacist: 0.1, branch_manager: 0.3, owner: 1 };
@@ -149,12 +150,15 @@ export default function POS() {
             <div className="relative mt-3"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search brand or generic name" className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20" /></div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {results.map((p) => (
-                <button key={p._id} onClick={() => add(p)} className="rounded-lg border border-slate-200 p-3 text-left hover:border-brand-500 hover:bg-brand-50/40">
+                <button key={p._id} onClick={() => add(p)} className="flex gap-3 rounded-lg border border-slate-200 p-3 text-left hover:border-slate-400">
+                  <ProductImage product={p} size="sm" className="h-14 w-14 shrink-0 rounded-md border border-slate-100" />
+                  <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2"><span className="text-sm font-medium">{p.brand} {p.strength}</span><span className="text-sm font-semibold tabular-nums">{money(p.price)}</span></div>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">{p.generic}
                     {p.legalStatus === "prescription_only" && <Badge tone="amber">Rx</Badge>}{p.legalStatus === "controlled" && <Badge tone="red">Controlled</Badge>}{p.legalStatus === "pharmacy_only" && <Badge tone="blue">Pharmacy only</Badge>}
                     <span className={p.stock ? (p.stock < 10 ? "text-amber-700" : "text-emerald-700") : "text-red-700"}>{p.stock ? `${p.stock} in stock` : "Out of stock"}</span>
                     {p.nextExpiry && p.stock > 0 && <span>exp {dateFmt(p.nextExpiry)}</span>}
+                  </div>
                   </div>
                 </button>
               ))}
@@ -168,6 +172,7 @@ export default function POS() {
           <div className="mt-3 divide-y divide-slate-100">
             {cart.map((l) => (
               <div key={l.product._id} className="flex items-center gap-2 py-2 text-sm">
+                <ProductImage product={l.product} size="xs" className="h-8 w-8 shrink-0 rounded" />
                 <div className="min-w-0 flex-1"><div className="truncate font-medium">{l.product.brand} {l.product.strength}</div><div className="text-xs text-slate-500">{money(l.product.price)} each{promoOf(l.product._id)?.promoDiscount > 0 && <span className="ml-1 font-medium text-emerald-700">{promoOf(l.product._id).promoName}: -{money(promoOf(l.product._id).promoDiscount)}</span>}</div></div>
                 <div className="flex items-center gap-1"><button aria-label="Less" onClick={() => setQty(l.product._id, -1)} className="rounded border border-slate-200 p-1 hover:bg-slate-50"><Minus className="h-3.5 w-3.5" /></button><span className="w-7 text-center tabular-nums">{l.qty}</span><button aria-label="More" onClick={() => setQty(l.product._id, 1)} className="rounded border border-slate-200 p-1 hover:bg-slate-50"><Plus className="h-3.5 w-3.5" /></button></div>
                 <div className="w-20 text-right tabular-nums">{money(l.product.price * l.qty)}</div>

@@ -6,6 +6,8 @@ import { useLoad } from "@/lib/useLoad";
 import { money } from "@/lib/api";
 import { parseCsv } from "@/lib/csv";
 import { downloadExport } from "@/lib/download";
+import { resizeImage } from "@/lib/image";
+import ProductImage from "@/components/ProductImage";
 import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, Table, Td } from "@/components/ui";
 
 const LEGAL: Record<string, [string, any]> = { otc: ["OTC", "green"], pharmacy_only: ["Pharmacy only", "blue"], prescription_only: ["Prescription", "amber"], controlled: ["Controlled", "red"] };
@@ -20,6 +22,13 @@ export default function Products() {
   const [imp, setImp] = useState(false); const [report, setReport] = useState<any>(null);
   const editable = can("store_officer", "branch_manager", "pharmacist");
 
+  const [uploading, setUploading] = useState(false);
+  const upload = async (file: File) => {
+    setErr(null); setUploading(true);
+    try { const image = await resizeImage(file); const p = await call(`/products/${edit._id}/image`, { body: { image } }); setEdit({ ...edit, imageUrl: p.imageUrl }); reload(); }
+    catch (e: any) { setErr(e.message); } finally { setUploading(false); }
+  };
+  const removeImage = async () => { const p = await call(`/products/${edit._id}/image`, { method: "DELETE" }); setEdit({ ...edit, imageUrl: p.imageUrl }); reload(); };
   const save = async () => {
     setErr(null);
     try {
@@ -52,9 +61,10 @@ export default function Products() {
         </div>
         <ErrorNote error={error} />
         {loading && !data ? <Spinner /> : (
-          <Table head={["Product", "Generic", "Category", "Class", "Price", "Stock here", ""]} empty="No products match">
+          <Table head={["", "Product", "Generic", "Category", "Class", "Price", "Stock here", ""]} empty="No products match">
             {(data || []).map((p: any) => (
               <tr key={p._id}>
+                <Td className="w-14"><ProductImage product={p} size="sm" className="h-10 w-10 rounded border border-slate-200" /></Td>
                 <Td><div className="font-medium">{p.brand} {p.strength}</div><div className="text-xs text-slate-500">{p.form} · {p.packSize} · {p.barcode}</div></Td>
                 <Td>{p.generic}</Td><Td>{p.category}</Td>
                 <Td><Badge tone={LEGAL[p.legalStatus][1]}>{LEGAL[p.legalStatus][0]}</Badge></Td>
@@ -70,6 +80,16 @@ export default function Products() {
       <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?._id ? "Edit product" : "Add product"} wide>
         {edit && (
           <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex items-center gap-4 sm:col-span-2">
+              <ProductImage product={edit} className="h-28 w-28 shrink-0 rounded-lg border border-slate-200" />
+              <div className="space-y-2 text-sm">
+                {edit._id ? <>
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-300 px-3 py-1.5 font-medium hover:bg-slate-50">{uploading ? "Uploading..." : edit.imageUrl ? "Change photo" : "Upload photo"}<input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) upload(f); }} /></label>
+                  {edit.imageUrl && <button type="button" onClick={removeImage} className="ml-3 text-slate-500 underline">Remove</button>}
+                  <p className="text-xs text-slate-500">Shown in the online store and at the till. Use your own photo of the pack, or one the supplier allows you to use.</p>
+                </> : <p className="text-xs text-slate-500">Save the product first, then add a photo.</p>}
+              </div>
+            </div>
             {([["brand", "Brand name"], ["generic", "Generic (INN) name"], ["strength", "Strength"], ["form", "Dosage form"], ["packSize", "Pack size"], ["manufacturer", "Manufacturer"], ["barcode", "Barcode"], ["category", "Category"], ["fdaRegNo", "FDA registration no."], ["price", "Selling price"], ["cost", "Cost price"], ["taxRate", "Tax rate (0.15 = 15%)"], ["reorderLevel", "Reorder level"]] as const).map(([k, l]) => (
               <Input key={k} label={l} value={edit[k] ?? ""} onChange={(e) => setEdit({ ...edit, [k]: e.target.value })} />
             ))}

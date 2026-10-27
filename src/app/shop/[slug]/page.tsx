@@ -7,6 +7,7 @@ import { useShopAuth } from "@/lib/shop";
 import { useLoad } from "@/lib/useLoad";
 import { Badge, Button, Card, ErrorNote, Input, Modal, Select, Spinner } from "@/components/ui";
 import { ShopFooter, ShopHeader } from "@/components/ShopChrome";
+import ProductImage from "@/components/ProductImage";
 
 type Item = { product: any; qty: number };
 
@@ -69,10 +70,13 @@ export default function Shop({ params }: { params: Promise<{ slug: string }> }) 
         {products.loading && !products.data ? <Spinner /> : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {(products.data || []).map((p: any) => (
-              <Card key={p._id} className="flex flex-col p-4">
+              <Card key={p._id} className="flex flex-col overflow-hidden">
+                <ProductImage product={p} className="aspect-[4/3] w-full border-b border-slate-100" />
+                <div className="flex flex-1 flex-col p-4">
                 <div className="flex items-start justify-between gap-2"><div><h3 className="font-medium text-slate-900">{p.brand} {p.strength}</h3><p className="text-sm text-slate-500">{p.generic} · {p.form} · {p.packSize}</p></div><div className="whitespace-nowrap text-right font-semibold tabular-nums">{money(p.price)}</div></div>
                 <div className="mt-2 flex flex-wrap gap-1.5">{p.promo && <Badge tone="violet">{p.promo}</Badge>}{p.requiresRx ? <Badge tone="amber"><FileText className="mr-1 h-3 w-3" />Prescription needed</Badge> : <Badge tone="green">No prescription</Badge>}<Badge tone={p.inStock ? (p.stock < 10 ? "amber" : "green") : "red"}>{p.inStock ? (p.stock < 10 ? `Only ${p.stock} left` : "In stock") : "Out of stock here"}</Badge></div>
                 <div className="mt-auto pt-4">{p.inStock ? <Button className="w-full" variant="outline" onClick={() => { add(p); }} disabled={!branch?.online}><Plus className="h-4 w-4" />Add to cart</Button> : <Button className="w-full" variant="outline" onClick={() => showAlt(p)}>See substitutes</Button>}</div>
+                </div>
               </Card>
             ))}
             {products.data && !products.data.length && <p className="col-span-full py-12 text-center text-slate-500">No medicines found. Try another search.</p>}
@@ -84,7 +88,7 @@ export default function Shop({ params }: { params: Promise<{ slug: string }> }) 
       <Cart open={cartOpen} onClose={() => setCartOpen(false)} cart={cart} setCart={setCart} branch={branch} shop={shop.data} slug={slug} auth={auth} needLogin={() => { setCartOpen(false); setLoginOpen(true); }} onPlaced={(o: any) => { setPlaced(o); setCart([]); setCartOpen(false); }} />
       <Login open={loginOpen} onClose={() => setLoginOpen(false)} auth={auth} />
       <Modal open={!!alt} onClose={() => setAlt(null)} title={`Alternatives to ${alt?.p.brand || ""}`}>
-        {alt?.list.length ? alt.list.map((a) => <div key={a._id} className="flex items-center justify-between border-b border-slate-100 py-2 text-sm"><span>{a.brand} {a.strength}<div className="text-xs text-slate-500">{a.requiresRx ? "Prescription needed" : "No prescription"}</div></span><span className="flex items-center gap-2">{money(a.price)}{a.stock > 0 ? <Button size="sm" onClick={() => { add({ ...a, inStock: true, taxRate: 0 }); setAlt(null); }}>Add</Button> : <Badge tone="red">Out of stock</Badge>}</span></div>) : <p className="text-sm text-slate-600">No substitutes available at this branch. Try another branch from the selector above.</p>}
+        {alt?.list.length ? alt.list.map((a) => <div key={a._id} className="flex items-center justify-between border-b border-slate-100 py-2 text-sm"><span className="flex items-center gap-3"><ProductImage product={a} size="sm" className="h-10 w-10 shrink-0 rounded border border-slate-200" /><span>{a.brand} {a.strength}<div className="text-xs text-slate-500">{a.requiresRx ? "Prescription needed" : "No prescription"}</div></span></span><span className="flex items-center gap-2">{money(a.price)}{a.stock > 0 ? <Button size="sm" onClick={() => { add({ ...a, inStock: true, taxRate: 0 }); setAlt(null); }}>Add</Button> : <Badge tone="red">Out of stock</Badge>}</span></div>) : <p className="text-sm text-slate-600">No substitutes available at this branch. Try another branch from the selector above.</p>}
       </Modal>
       <Modal open={!!placed} onClose={() => setPlaced(null)} title="Order placed">
         {placed && <div className="space-y-2 text-sm"><p className="text-lg font-semibold text-emerald-700">Thank you!</p><p>Your order <b>{placed.orderNo}</b> is {placed.status === "pending_review" ? "waiting for the pharmacist to review your prescription" : "received"}. We will send updates by SMS.</p><Link href={`/shop/${slug}/orders`} className="inline-block rounded-lg bg-brand-700 px-4 py-2 font-medium text-white">Track my order</Link></div>}
@@ -161,6 +165,7 @@ function Cart({ open, onClose, cart, setCart, branch, shop, slug, auth, needLogi
         <div className="space-y-5">
           <div className="divide-y divide-slate-100">{cart.map((i: Item) => (
             <div key={i.product._id} className="flex items-center gap-3 py-2 text-sm">
+              <ProductImage product={i.product} size="sm" className="h-12 w-12 shrink-0 rounded-md border border-slate-200" />
               <div className="min-w-0 flex-1"><div className="truncate font-medium">{i.product.brand} {i.product.strength}</div>{i.product.requiresRx && <Badge tone="amber">Prescription</Badge>}</div>
               <div className="flex items-center gap-1"><button aria-label="Less" onClick={() => set(i.product._id, -1)} className="rounded border p-1"><Minus className="h-3.5 w-3.5" /></button><span className="w-6 text-center">{i.qty}</span><button aria-label="More" onClick={() => set(i.product._id, 1)} className="rounded border p-1"><Plus className="h-3.5 w-3.5" /></button></div>
               <div className="w-20 text-right tabular-nums">{money(i.product.price * i.qty)}</div>
