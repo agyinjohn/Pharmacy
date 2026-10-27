@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
 import { dateFmt, dateTime, money } from "@/lib/api";
-import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Spinner, StatusBadge, Table, Td } from "@/components/ui";
+import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Spinner, StatusBadge, Table, Td, Ref } from "@/components/ui";
 import { StaffReminders } from "@/components/Reminders";
 
 const blank = { name: "", phone: "", email: "", allergies: "", conditions: "", creditLimit: "", consentComms: true, consentHealth: false };
@@ -39,7 +39,7 @@ export default function Customers() {
               <tr key={c._id}><Td className="font-medium">{c.name}</Td><Td>{c.phone}</Td><Td>{c.allergies?.length ? <Badge tone="red">{c.allergies.join(", ")}</Badge> : "-"}</Td>
                 <Td>{c.creditLimit ? `${money(c.balance)} / ${money(c.creditLimit)}` : "-"}</Td><Td>{c.loyaltyPoints}</Td>
                 <Td>{c.consent?.at ? <span className="text-xs text-slate-500">{dateFmt(c.consent.at)}</span> : <Badge tone="amber">None</Badge>}</Td>
-                <Td className="text-right"><Button size="sm" variant="outline" onClick={() => open(c._id)}>Open</Button></Td></tr>
+                <Td className="text-right"><Button size="sm" variant="ghost" onClick={() => open(c._id)}>View</Button></Td></tr>
             ))}
           </Table>
         )}
@@ -47,7 +47,7 @@ export default function Customers() {
       <Modal open={!!stmt} onClose={() => setStmt(null)} title={`Statement: ${stmt?.customer.name || ""}`} wide>
         {stmt && <div className="space-y-3 text-sm">
           <div className="flex justify-between"><span>Credit limit {money(stmt.customer.creditLimit)}</span><b>Balance due {money(stmt.customer.balance)}</b></div>
-          <Table head={["Date", "Type", "Reference", "Amount", "Balance"]} empty="No activity">{stmt.rows.map((r: any, i: number) => <tr key={i}><Td>{dateTime(r.at)}</Td><Td>{r.type === "charge" ? "Credit sale" : "Payment"}</Td><Td className="font-mono text-xs">{r.ref}</Td><Td className="tabular-nums">{r.type === "payment" ? "-" : ""}{money(r.amount)}</Td><Td className="tabular-nums font-medium">{money(r.balance)}</Td></tr>)}</Table>
+          <Table head={["Date", "Type", "Reference", "Amount", "Balance"]} empty="No activity">{stmt.rows.map((r: any, i: number) => <tr key={i}><Td>{dateTime(r.at)}</Td><Td>{r.type === "charge" ? "Credit sale" : "Payment"}</Td><Td><Ref>{r.ref}</Ref></Td><Td className="whitespace-nowrap tabular-nums">{r.type === "payment" ? "-" : ""}{money(r.amount)}</Td><Td className="tabular-nums font-medium">{money(r.balance)}</Td></tr>)}</Table>
           <Button className="no-print" variant="outline" onClick={() => window.print()}>Print statement</Button>
         </div>}
       </Modal>

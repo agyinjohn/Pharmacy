@@ -6,7 +6,7 @@ import { useOffline } from "@/lib/offlineContext";
 import { loadRxSnapshot, newClientId, queueOp, saveRxSnapshot } from "@/lib/offline";
 import { useLoad } from "@/lib/useLoad";
 import { ApiError, dateFmt, dateTime } from "@/lib/api";
-import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, StatusBadge, Table, Td, Textarea } from "@/components/ui";
+import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, StatusBadge, Table, Td, Textarea, Ref, Tabs } from "@/components/ui";
 
 const emptyRx = { patientName: "", customer: "", prescriber: { name: "", regNo: "", facility: "", address: "" }, items: [{ product: "", dose: "", frequency: "", duration: "", qty: "" }], refillsAllowed: 0, paperOriginalSeen: false, image: "", insurance: { scheme: "", memberNo: "", copay: "" } };
 
@@ -75,23 +75,21 @@ export default function Prescriptions() {
           <h2 className="font-semibold">Offline: verified prescriptions saved on this device</h2>
           <p className="text-sm text-slate-500">{snap ? `Copy from ${dateTime(snap.at)}. Controlled drugs cannot be dispensed offline.` : "No offline copy yet. A pharmacist must open the app while online first."}</p>
           {user?.role === "pharmacist" && snap && <Table head={["Rx", "Patient", "Items", "Allergies", ""]} empty="Nothing to dispense">
-            {snap.prescriptions.filter((r: any) => r.items.some((i: any) => i.dispensedQty < i.max)).map((r: any) => <tr key={r._id}><Td className="font-mono text-xs">{r.rxNo}</Td><Td>{r.patientName}</Td><Td>{r.items.map((i: any) => `${i.name} ${i.dispensedQty}/${i.max}`).join(", ")}</Td><Td>{r.allergies?.length ? <Badge tone="red">{r.allergies.join(", ")}</Badge> : "-"}</Td><Td className="text-right"><Button size="sm" onClick={() => dispenseOffline(r)}>Dispense offline</Button></Td></tr>)}
+            {snap.prescriptions.filter((r: any) => r.items.some((i: any) => i.dispensedQty < i.max)).map((r: any) => <tr key={r._id}><Td><Ref>{r.rxNo}</Ref></Td><Td>{r.patientName}</Td><Td>{r.items.map((i: any) => `${i.name} ${i.dispensedQty}/${i.max}`).join(", ")}</Td><Td>{r.allergies?.length ? <Badge tone="red">{r.allergies.join(", ")}</Badge> : "-"}</Td><Td className="text-right"><Button size="sm" onClick={() => dispenseOffline(r)}>Dispense offline</Button></Td></tr>)}
           </Table>}
         </Card>
       )}
       <Card className="p-4">
-        <div className="mb-4 flex gap-2 overflow-x-auto">
-          {["", "pending", "verified", "partial", "dispensed", "rejected"].map((s) => <Button key={s} size="sm" variant={status === s ? "primary" : "outline"} onClick={() => setStatus(s)}>{s || "All"}</Button>)}
-        </div>
+        <Tabs value={status} onChange={setStatus} items={[["", "All"], ["pending", "To verify"], ["verified", "Ready to dispense"], ["partial", "Refills left"], ["dispensed", "Dispensed"], ["rejected", "Declined"]]} />
         <ErrorNote error={list.error} />
         {list.loading && !list.data ? <Spinner /> : (
           <Table head={["Rx no.", "Patient", "Prescriber", "Items", "Source", "Status", "Date", ""]} empty="No prescriptions">
             {(list.data || []).map((r: any) => (
               <tr key={r._id}>
-                <Td className="font-mono text-xs">{r.rxNo}</Td><Td className="font-medium">{r.patientName}</Td><Td>{r.prescriber?.name}</Td>
+                <Td><Ref>{r.rxNo}</Ref></Td><Td className="font-medium">{r.patientName}</Td><Td>{r.prescriber?.name}</Td>
                 <Td>{r.items.map((i: any) => i.name).join(", ")} {r.hasControlled && <Badge tone="red">Controlled</Badge>}</Td>
-                <Td>{r.source}</Td><Td><StatusBadge s={r.status} /></Td><Td>{dateFmt(r.createdAt)}</Td>
-                <Td className="text-right"><Button size="sm" variant="outline" onClick={() => load(r._id)}>Open</Button></Td>
+                <Td>{r.source === "online" ? "Online" : r.source === "prescriber" ? "Prescriber" : "Walk-in"}</Td><Td><StatusBadge s={r.status} /></Td><Td>{dateFmt(r.createdAt)}</Td>
+                <Td className="text-right"><Button size="sm" variant="ghost" onClick={() => load(r._id)}>View</Button></Td>
               </tr>
             ))}
           </Table>

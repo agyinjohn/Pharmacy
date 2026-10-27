@@ -36,7 +36,7 @@ export default function Rider() {
       <ErrorNote error={error || err} />
       {loading && !data ? <Spinner /> : (data || []).map((o: any) => (
         <Card key={o._id} className="mb-4 p-4">
-          <div className="flex items-center justify-between"><span className="font-mono text-xs">{o.orderNo}</span>{o.items.some((i: any) => i.requiresRx) && <Badge tone="amber">Prescription - hand to the verified recipient only</Badge>}</div>
+          <div className="flex items-center justify-between"><span className="whitespace-nowrap text-xs font-medium tabular-nums tracking-wide text-slate-500">{o.orderNo}</span>{o.items.some((i: any) => i.requiresRx) && <Badge tone="amber">Prescription - hand to the verified recipient only</Badge>}</div>
           <div className="mt-2 text-lg font-semibold">{o.customer?.name}</div>
           <a href={`tel:${o.customer?.phone}`} className="mt-1 flex items-center gap-2 text-sm text-brand-700"><Phone className="h-4 w-4" />{o.customer?.phone}</a>
           <div className="mt-1 flex items-start gap-2 text-sm"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><span>{o.address?.line} {o.address?.digitalAddress && `(${o.address.digitalAddress})`}</span></div>

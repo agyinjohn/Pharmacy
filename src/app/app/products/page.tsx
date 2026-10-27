@@ -68,7 +68,7 @@ export default function Products() {
                 <Td><div className="font-medium">{p.brand} {p.strength}</div><div className="text-xs text-slate-500">{p.form} · {p.packSize} · {p.barcode}</div></Td>
                 <Td>{p.generic}</Td><Td>{p.category}</Td>
                 <Td><Badge tone={LEGAL[p.legalStatus][1]}>{LEGAL[p.legalStatus][0]}</Badge></Td>
-                <Td className="tabular-nums">{money(p.price)}</Td>
+                <Td className="whitespace-nowrap tabular-nums">{money(p.price)}</Td>
                 <Td className={p.stock <= p.reorderLevel ? "font-semibold text-amber-700" : ""}>{p.stock}</Td>
                 <Td className="whitespace-nowrap text-right"><Button size="sm" variant="ghost" onClick={() => showAlt(p)}><Repeat className="h-3.5 w-3.5" />Substitutes</Button>{editable && <Button size="sm" variant="ghost" onClick={() => setEdit(p)}>Edit</Button>}</Td>
               </tr>

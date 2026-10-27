@@ -67,12 +67,12 @@ export default function Dashboard() {
               {data.perBranch.map((b: any) => (
                 <tr key={b.branch._id}>
                   <Td className="font-medium">{b.branch.name} <span className="text-xs text-slate-400">{b.branch.code}</span></Td>
-                  <Td className="tabular-nums">{money(b.todaySales)}</Td>
+                  <Td className="whitespace-nowrap tabular-nums">{money(b.todaySales)}</Td>
                   <Td>{b.lowStock ? <Badge tone="amber">{b.lowStock}</Badge> : "0"}</Td>
                   <Td>{b.nearExpiryBatches ? <Badge tone="red">{b.nearExpiryBatches}</Badge> : "0"}</Td>
                   <Td>{b.expiredBatches ? <Badge tone="red">{b.expiredBatches}</Badge> : "0"}</Td>
                   <Td>{b.openOrders}</Td>
-                  <Td className="tabular-nums">{money(b.stockValue)}</Td>
+                  <Td className="whitespace-nowrap tabular-nums">{money(b.stockValue)}</Td>
                   <Td>{b.licenceDays === null ? "-" : b.licenceDays < 0 ? <Badge tone="red">Expired</Badge> : b.licenceDays <= 60 ? <Badge tone="amber"><AlertTriangle className="mr-1 h-3 w-3" />{b.licenceDays}d left</Badge> : <Badge tone="green">Valid</Badge>}</Td>
                 </tr>
               ))}

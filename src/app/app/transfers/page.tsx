@@ -4,7 +4,7 @@ import { ArrowRight, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
 import { dateTime } from "@/lib/api";
-import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, StatusBadge, Table, Td } from "@/components/ui";
+import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, StatusBadge, Table, Td, Ref } from "@/components/ui";
 
 export default function Transfers() {
   const { call, branch, branches, user } = useAuth();
@@ -25,7 +25,7 @@ export default function Transfers() {
         {list.loading && !list.data ? <Spinner /> : (
           <Table head={["Ref", "Route", "Items", "Status", "Requested", ""]} empty="No transfers">
             {(list.data || []).map((t: any) => (
-              <tr key={t._id}><Td className="font-mono text-xs">{t.ref}</Td><Td><span className="inline-flex items-center gap-1">{t.from?.name}<ArrowRight className="h-3 w-3" />{t.to?.name}</span></Td>
+              <tr key={t._id}><Td><Ref>{t.ref}</Ref></Td><Td><span className="inline-flex items-center gap-1">{t.from?.name}<ArrowRight className="h-3 w-3" />{t.to?.name}</span></Td>
                 <Td>{t.items.map((i: any) => `${i.name} ×${i.qty}${i.receivedQty !== undefined && i.receivedQty !== i.qty ? ` (got ${i.receivedQty})` : ""}`).join(", ")} {t.hasVariance && <Badge tone="red">Variance</Badge>}</Td>
                 <Td><StatusBadge s={t.status} /></Td><Td>{dateTime(t.createdAt)}</Td>
                 <Td className="whitespace-nowrap text-right">

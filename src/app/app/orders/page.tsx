@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
 import { dateTime, money } from "@/lib/api";
-import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, StatusBadge, Table, Td } from "@/components/ui";
+import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, StatusBadge, Table, Td, Ref, Tabs } from "@/components/ui";
 
 const TABS: [string, string][] = [["pending_review,received", "To review"], ["approved", "To pack"], ["packed", "Ready"], ["out_for_delivery", "Out for delivery"], ["delivered,failed,cancelled,rejected", "Closed"]];
 
@@ -11,6 +11,7 @@ export default function Orders() {
   const { call, user, branch } = useAuth();
   const [tab, setTab] = useState(TABS[0][0]);
   const list = useLoad(() => call(`/orders?status=${tab}`), [tab, branch?._id]);
+  const alerts = useLoad<any>(() => call("/orders/alerts"), [branch?._id, list.data]);
   const [o, setO] = useState<any>(null); const [err, setErr] = useState<string | null>(null);
   const [riders, setRiders] = useState<any[]>([]); const [rider, setRider] = useState(""); const [courier, setCourier] = useState(""); const [trackUrl, setTrackUrl] = useState("");
   const [reason, setReason] = useState(""); const [msg, setMsg] = useState(""); const [code, setCode] = useState(""); const [recipient, setRecipient] = useState("");
@@ -32,17 +33,17 @@ export default function Orders() {
     <div>
       <PageHeader title="Online orders" subtitle={`${branch?.name} - review, pack, dispatch and deliver`} />
       <Card className="p-4">
-        <div className="mb-4 flex gap-2 overflow-x-auto">{TABS.map(([v, l]) => <Button key={v} size="sm" variant={tab === v ? "primary" : "outline"} onClick={() => setTab(v)}>{l}</Button>)}</div>
+        <Tabs value={tab} onChange={setTab} items={TABS.map(([v, l]) => [v, l, v === TABS[0][0] ? (alerts.data ? alerts.data.pendingReview + alerts.data.awaitingApproval : 0) : v === "packed" ? alerts.data?.readyToDispatch : v === "out_for_delivery" ? alerts.data?.outForDelivery : 0] as [string, string, number?])} />
         <ErrorNote error={list.error} />
         {list.loading && !list.data ? <Spinner /> : (
           <Table head={["Order", "Customer", "Items", "Fulfilment", "Payment", "Total", "Status", "Placed", ""]} empty="No orders in this stage">
             {(list.data || []).map((x: any) => (
               <tr key={x._id}>
-                <Td className="font-mono text-xs">{x.orderNo}</Td><Td className="font-medium">{x.customer?.name}</Td>
+                <Td><Ref>{x.orderNo}</Ref></Td><Td className="font-medium">{x.customer?.name}</Td>
                 <Td>{x.items.length} {x.items.some((i: any) => i.requiresRx) && <Badge tone="amber">Rx</Badge>}</Td>
-                <Td>{x.fulfilment}</Td><Td><StatusBadge s={x.payment.status} /> <span className="text-xs text-slate-500">{x.payment.method}</span></Td>
-                <Td className="tabular-nums">{money(x.total)}</Td><Td><StatusBadge s={x.status} /></Td><Td>{dateTime(x.createdAt)}</Td>
-                <Td className="text-right"><Button size="sm" variant="outline" onClick={() => open(x._id)}>Open</Button></Td>
+                <Td>{x.fulfilment === "pickup" ? "Pickup" : "Delivery"}</Td><Td className="whitespace-nowrap"><StatusBadge s={x.payment.status} /> <span className="text-xs text-slate-500">{({ momo: "MoMo", card: "Card", cod: "On delivery" } as any)[x.payment.method]}</span></Td>
+                <Td className="whitespace-nowrap tabular-nums">{money(x.total)}</Td><Td><StatusBadge s={x.status} /></Td><Td>{dateTime(x.createdAt)}</Td>
+                <Td className="text-right"><Button size="sm" variant="ghost" onClick={() => open(x._id)}>View</Button></Td>
               </tr>
             ))}
           </Table>

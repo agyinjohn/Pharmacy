@@ -4,7 +4,7 @@ import { ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
 import { dateTime } from "@/lib/api";
-import { Badge, Button, Card, ErrorNote, Input, PageHeader, Spinner, Table, Td } from "@/components/ui";
+import { Badge, Button, Card, ErrorNote, Input, PageHeader, Spinner, Table, Td, Tabs } from "@/components/ui";
 import DataProtection from "@/components/DataProtection";
 
 export default function Settings() {
@@ -14,7 +14,7 @@ export default function Settings() {
   return (
     <div>
       <PageHeader title="Settings" subtitle={org?.name} />
-      <div className="mb-4 flex gap-2">{tabs.map(([v, l]) => <Button key={v} size="sm" variant={tab === v ? "primary" : "outline"} onClick={() => setTab(v)}>{l}</Button>)}</div>
+      <Tabs value={tab} onChange={setTab} items={tabs as [string, string][]} />
       {mustSetupTwoStep && <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Your organisation requires two-step sign-in for your role. Please turn it on below.</div>}
       {tab === "security" && <Security call={call} enabled={!!user?.totp?.enabled} refresh={refresh} />}
       {tab === "org" && <Org call={call} org={org} refresh={refresh} />}

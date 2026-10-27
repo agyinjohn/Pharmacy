@@ -4,6 +4,7 @@ import { Download, Printer } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
 import { downloadExport } from "@/lib/download";
+import { dateFmt, dateTime, money } from "@/lib/api";
 import { Button, Card, ErrorNote, Input, PageHeader, Select, Spinner, Table, Td } from "@/components/ui";
 
 const REPORTS: [string, string, boolean][] = [
@@ -24,7 +25,19 @@ export default function Reports() {
   const exportAs = (format: "csv" | "xlsx") => downloadExport(`/reports/${rep}${qs}&format=${format}`, token, `${rep.replace(/[?=&]/g, "-")}.${format}`).catch((e) => alert(e.message));
   const cols = data?.length ? Object.keys(data[0]) : [];
   const dated = REPORTS.find((r) => r[0] === rep)?.[2];
-  const fmt = (v: any) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}T/.test(v) ? new Date(v).toLocaleString("en-GB") : v ?? "");
+  const MONEY = /^(subtotal|total|revenue|cost|margin|tax|discount|discounts|net_sales|gross|value|value_at_risk|balance_due|credit_limit|claim_amount|dispensed_value|copay|collected|refunded|awaiting_cod|net_expected_from_provider)$/;
+  const fmt = (c: string, v: any) => {
+    if (v === null || v === undefined || v === "") return "-";
+    if (typeof v === "number") return MONEY.test(c) ? money(v) : c === "margin_pct" ? `${v}%` : v.toLocaleString("en-GH");
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}T/.test(v)) return dateTime(v);
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return dateFmt(v);
+    return v;
+  };
+  const label = (c: string) => (c.charAt(0).toUpperCase() + c.slice(1)).replace(/_/g, " ");
+  const numeric = (c: string) => (data || []).some((r: any) => typeof r[c] === "number");
+  const chartKey = cols.includes("total") ? "total" : cols.includes("revenue") ? "revenue" : null;
+  const chartRows = chartKey && (data || []).length > 1 && (data || []).length <= 62 ? data! : null;
+  const chartMax = chartRows ? Math.max(1, ...chartRows.map((r: any) => r[chartKey!] || 0)) : 1;
 
   return (
     <div>
@@ -39,9 +52,20 @@ export default function Reports() {
         <h2 className="mb-3 font-semibold">{REPORTS.find((r) => r[0] === rep)?.[1]}</h2>
         <ErrorNote error={error} />
         {loading && !data ? <Spinner /> : (
-          <Table head={cols.map((c) => c.replace(/_/g, " "))} empty="No data for this selection">
-            {(data || []).slice(0, 500).map((r: any, i: number) => <tr key={i}>{cols.map((c) => <Td key={c} className={typeof r[c] === "number" ? "tabular-nums" : ""}>{fmt(r[c])}</Td>)}</tr>)}
-          </Table>
+          <>
+            {chartRows && (
+              <div className="mb-6 flex h-40 items-end gap-1 border-b border-slate-100 pb-2" role="img" aria-label="Chart of the report totals">
+                {chartRows.slice(0, 40).map((r: any, i: number) => (
+                  <div key={i} className="group relative flex h-full flex-1 items-end" title={`${fmt(cols[0], r[cols[0]])}: ${money(r[chartKey!])}`}>
+                    <div className="w-full rounded-sm bg-slate-300 transition group-hover:bg-brand-700" style={{ height: `${Math.max(2, (r[chartKey!] / chartMax) * 100)}%` }} />
+                  </div>
+                ))}
+              </div>
+            )}
+            <Table head={cols.map(label)} right={cols.map((c, i) => (numeric(c) ? i : -1)).filter((i) => i >= 0)} empty="No data for this selection">
+              {(data || []).slice(0, 500).map((r: any, i: number) => <tr key={i}>{cols.map((c) => <Td key={c} className={numeric(c) ? "whitespace-nowrap text-right tabular-nums" : ""}>{fmt(c, r[c])}</Td>)}</tr>)}
+            </Table>
+          </>
         )}
         {data && data.length > 500 && <p className="mt-2 text-xs text-slate-500">Showing first 500 rows. Export for the full set.</p>}
       </Card>

@@ -7,7 +7,7 @@ import { adjustLocalStock, loadCatalog, newClientId, queueOp } from "@/lib/offli
 import { ApiError } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
 import { dateFmt, daysUntil, money } from "@/lib/api";
-import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, Stat, Table, Td } from "@/components/ui";
+import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, Stat, Table, Td, Ref } from "@/components/ui";
 
 export default function Inventory() {
   const { call, can, branch } = useAuth();
@@ -86,7 +86,7 @@ export default function Inventory() {
                 <Td>{r.reorderLevel}</Td>
                 <Td>{r.nearExpiry ? <Badge tone="amber">{r.nearExpiry}</Badge> : "-"}</Td>
                 <Td>{r.expired ? <Badge tone="red">{r.expired}</Badge> : "-"}</Td>
-                <Td>{dateFmt(r.nextExpiry)}</Td><Td className="tabular-nums">{money(r.value)}</Td>
+                <Td>{dateFmt(r.nextExpiry)}</Td><Td className="whitespace-nowrap tabular-nums">{money(r.value)}</Td>
                 <Td className="text-right"><Button size="sm" variant="ghost" onClick={() => openBatches(r)}>Batches</Button></Td>
               </tr>
             ))}
@@ -98,7 +98,7 @@ export default function Inventory() {
         <Table head={["Batch", "Expiry", "Qty", "Cost", "Status", ""]} empty="No batches">
           {batches.map((b) => { const d = daysUntil(b.expiry)!; return (
             <tr key={b._id}>
-              <Td className="font-mono text-xs">{b.batchNo}</Td>
+              <Td><Ref>{b.batchNo}</Ref></Td>
               <Td>{dateFmt(b.expiry)} {d < 0 ? <Badge tone="red">Expired</Badge> : d <= 30 ? <Badge tone="red">{d}d</Badge> : d <= 90 ? <Badge tone="amber">{d}d</Badge> : null}</Td>
               <Td>{b.qty}</Td><Td>{money(b.cost)}</Td>
               <Td>{b.status === "quarantined" ? <Badge tone="red">Quarantined</Badge> : <Badge tone="green">Active</Badge>}</Td>

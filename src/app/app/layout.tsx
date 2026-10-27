@@ -12,26 +12,26 @@ import { OfflineProvider } from "@/lib/offlineContext";
 import OfflineBanner from "@/components/OfflineBanner";
 
 const REPORTERS = ["branch_manager", "accountant", "auditor", "pharmacist", "store_officer"];
-const NAV: { href: string; label: string; icon: any; roles: string[] | "all" }[] = [
+const NAV: { href: string; label: string; icon: any; roles: string[] | "all"; group?: string }[] = [
   { href: "/app", label: "Dashboard", icon: LayoutDashboard, roles: REPORTERS },
-  { href: "/app/pos", label: "Point of sale", icon: ShoppingCart, roles: ["cashier", "pharmacist", "branch_manager", "technician"] },
-  { href: "/app/sales", label: "Sales", icon: ScrollText, roles: ["cashier", "pharmacist", "branch_manager", "accountant", "auditor"] },
-  { href: "/app/prescriptions", label: "Prescriptions", icon: ClipboardCheck, roles: ["pharmacist", "technician", "branch_manager", "cashier"] },
-  { href: "/app/orders", label: "Online orders", icon: Globe, roles: ["pharmacist", "technician", "branch_manager", "dispatcher", "accountant"] },
-  { href: "/app/rider", label: "My deliveries", icon: Truck, roles: ["dispatcher"] },
-  { href: "/app/inventory", label: "Inventory", icon: Boxes, roles: ["store_officer", "branch_manager", "pharmacist", "technician", "accountant", "auditor"] },
-  { href: "/app/products", label: "Products", icon: Package, roles: ["store_officer", "branch_manager", "pharmacist", "technician", "accountant", "auditor", "cashier"] },
-  { href: "/app/purchasing", label: "Purchasing", icon: PackageCheck, roles: ["store_officer", "branch_manager", "accountant", "pharmacist"] },
-  { href: "/app/transfers", label: "Transfers", icon: ArrowLeftRight, roles: ["store_officer", "branch_manager", "pharmacist", "technician"] },
-  { href: "/app/register", label: "Controlled drugs", icon: ShieldAlert, roles: ["pharmacist", "branch_manager", "auditor"] },
-  { href: "/app/customers", label: "Customers", icon: Users, roles: ["cashier", "pharmacist", "technician", "branch_manager", "accountant", "auditor"] },
-  { href: "/app/promotions", label: "Promotions", icon: Tag, roles: ["branch_manager", "cashier", "pharmacist"] },
-  { href: "/app/import", label: "Data import", icon: Upload, roles: ["branch_manager", "store_officer", "accountant"] },
-  { href: "/app/reports", label: "Reports", icon: BarChart3, roles: REPORTERS },
-  { href: "/app/branches", label: "Branches", icon: Store, roles: ["branch_manager"] },
-  { href: "/app/team", label: "Team", icon: UserCog, roles: ["branch_manager"] },
-  { href: "/app/audit", label: "Audit log", icon: ScrollText, roles: ["branch_manager", "auditor"] },
-  { href: "/app/settings", label: "Settings", icon: Cog, roles: "all" },
+  { href: "/app/pos", label: "Point of sale", icon: ShoppingCart, roles: ["cashier", "pharmacist", "branch_manager", "technician"], group: "Sell" },
+  { href: "/app/sales", label: "Sales", icon: ScrollText, roles: ["cashier", "pharmacist", "branch_manager", "accountant", "auditor"], group: "Sell" },
+  { href: "/app/orders", label: "Online orders", icon: Globe, roles: ["pharmacist", "technician", "branch_manager", "dispatcher", "accountant"], group: "Sell" },
+  { href: "/app/rider", label: "My deliveries", icon: Truck, roles: ["dispatcher"], group: "Sell" },
+  { href: "/app/customers", label: "Customers", icon: Users, roles: ["cashier", "pharmacist", "technician", "branch_manager", "accountant", "auditor"], group: "Sell" },
+  { href: "/app/promotions", label: "Promotions", icon: Tag, roles: ["branch_manager", "cashier", "pharmacist"], group: "Sell" },
+  { href: "/app/prescriptions", label: "Prescriptions", icon: ClipboardCheck, roles: ["pharmacist", "technician", "branch_manager", "cashier"], group: "Pharmacy" },
+  { href: "/app/register", label: "Controlled drugs", icon: ShieldAlert, roles: ["pharmacist", "branch_manager", "auditor"], group: "Pharmacy" },
+  { href: "/app/inventory", label: "Inventory", icon: Boxes, roles: ["store_officer", "branch_manager", "pharmacist", "technician", "accountant", "auditor"], group: "Stock" },
+  { href: "/app/products", label: "Products", icon: Package, roles: ["store_officer", "branch_manager", "pharmacist", "technician", "accountant", "auditor", "cashier"], group: "Stock" },
+  { href: "/app/purchasing", label: "Purchasing", icon: PackageCheck, roles: ["store_officer", "branch_manager", "accountant", "pharmacist"], group: "Stock" },
+  { href: "/app/transfers", label: "Transfers", icon: ArrowLeftRight, roles: ["store_officer", "branch_manager", "pharmacist", "technician"], group: "Stock" },
+  { href: "/app/import", label: "Data import", icon: Upload, roles: ["branch_manager", "store_officer", "accountant"], group: "Stock" },
+  { href: "/app/reports", label: "Reports", icon: BarChart3, roles: REPORTERS, group: "Business" },
+  { href: "/app/branches", label: "Branches", icon: Store, roles: ["branch_manager"], group: "Business" },
+  { href: "/app/team", label: "Team", icon: UserCog, roles: ["branch_manager"], group: "Business" },
+  { href: "/app/audit", label: "Audit log", icon: ScrollText, roles: ["branch_manager", "auditor"], group: "Business" },
+  { href: "/app/settings", label: "Settings", icon: Cog, roles: "all", group: "Business" },
 ];
 const HOME: Record<string, string> = { cashier: "/app/pos", technician: "/app/orders", dispatcher: "/app/rider" };
 const ROLE_LABEL: Record<string, string> = { owner: "Owner", branch_manager: "Branch manager", pharmacist: "Pharmacist", technician: "Technician", cashier: "Cashier", store_officer: "Store officer", accountant: "Accountant", dispatcher: "Rider", auditor: "Auditor (read-only)" };
@@ -72,13 +72,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </select>
       </div>
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-4" aria-label="Main">
-        {items.map(({ href, label, icon: Icon }) => {
+        {items.map(({ href, label, icon: Icon, group }, i) => {
+          const heading = group && group !== items[i - 1]?.group ? <div className="px-3 pb-1 pt-4 text-[11px] font-medium uppercase tracking-wider text-slate-400">{group}</div> : null;
           const active = href === "/app" ? path === "/app" : path.startsWith(href);
           return (
-            <Link key={href} href={href} className={cn("flex items-center gap-3 rounded-md px-3 py-1.5 text-sm", active ? "bg-slate-100 font-semibold text-slate-900" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")}>
+            <div key={href}>{heading}<Link href={href} className={cn("flex items-center gap-3 rounded-md px-3 py-1.5 text-sm", active ? "bg-slate-100 font-semibold text-slate-900" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")}>
               <Icon className="h-4 w-4 text-slate-400" />{label}
               {href === "/app/orders" && alerts && alerts.pendingReview + alerts.awaitingApproval > 0 && <span className="ml-auto rounded-full bg-slate-900 px-1.5 text-[11px] font-semibold text-white">{alerts.pendingReview + alerts.awaitingApproval}</span>}
-            </Link>
+            </Link></div>
           );
         })}
       </nav>

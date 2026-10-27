@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
 import { dateFmt, daysUntil, money } from "@/lib/api";
-import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, StatusBadge, Table, Td } from "@/components/ui";
+import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, StatusBadge, Table, Td, Ref, Tabs } from "@/components/ui";
 
 export default function Purchasing() {
   const { call, can, branch } = useAuth();
@@ -32,14 +32,14 @@ export default function Purchasing() {
     <div>
       <PageHeader title="Purchasing" subtitle="Purchase orders, goods received and supplier balances"
         actions={<>{can("store_officer", "branch_manager") && <Button onClick={() => { setForm({ supplier: "", items: [{ product: "", qty: "", cost: "" }] }); setErr(null); }}><Plus className="h-4 w-4" />New purchase order</Button>}{can("store_officer", "branch_manager", "accountant") && <Button variant="outline" onClick={() => { setSup({ name: "", contact: "", phone: "", licenseNumber: "", paymentTerms: "", creditLimit: 0 }); setErr(null); }}>Add supplier</Button>}</>} />
-      <div className="mb-4 flex gap-2"><Button size="sm" variant={tab === "po" ? "primary" : "outline"} onClick={() => setTab("po")}>Purchase orders</Button><Button size="sm" variant={tab === "suppliers" ? "primary" : "outline"} onClick={() => setTab("suppliers")}>Suppliers</Button><Button size="sm" variant={tab === "returns" ? "primary" : "outline"} onClick={() => setTab("returns")}>Returns and credit notes</Button></div>
+      <Tabs value={tab} onChange={(v) => setTab(v as any)} items={[["po", "Purchase orders", (pos.data || []).filter((p: any) => ["draft", "approved", "sent", "partial"].includes(p.status)).length], ["suppliers", "Suppliers"], ["returns", "Returns and credit notes"]]} />
       <Card className="p-4">
         {tab === "returns" ? (
-          <Table head={["Credit note", "Supplier", "Items", "Reason", "Value", "Date"]} empty="No returns yet">{(rets.data || []).map((r: any) => <tr key={r._id}><Td className="font-mono text-xs">{r.creditNoteNo}</Td><Td>{r.supplier?.name}</Td><Td>{r.items.map((i: any) => `${i.name} (${i.batchNo}) ×${i.qty}`).join(", ")}</Td><Td>{r.reason}</Td><Td>{money(r.total)}</Td><Td>{dateFmt(r.createdAt)}</Td></tr>)}</Table>
+          <Table head={["Credit note", "Supplier", "Items", "Reason", "Value", "Date"]} empty="No returns yet">{(rets.data || []).map((r: any) => <tr key={r._id}><Td><Ref>{r.creditNoteNo}</Ref></Td><Td>{r.supplier?.name}</Td><Td>{r.items.map((i: any) => `${i.name} (${i.batchNo}) ×${i.qty}`).join(", ")}</Td><Td>{r.reason}</Td><Td>{money(r.total)}</Td><Td>{dateFmt(r.createdAt)}</Td></tr>)}</Table>
         ) : tab === "po" ? (pos.loading && !pos.data ? <Spinner /> : (
           <Table head={["PO", "Supplier", "Branch", "Lines", "Total", "Status", ""]} empty="No purchase orders">
             {(pos.data || []).map((p: any) => (
-              <tr key={p._id}><Td className="font-mono text-xs">{p.poNo}</Td><Td>{p.supplier?.name}</Td><Td>{p.branch?.name}</Td><Td>{p.items.map((i: any) => `${i.name} ×${i.qty}`).join(", ")}</Td><Td className="tabular-nums">{money(p.total)}</Td><Td><StatusBadge s={p.status} /></Td>
+              <tr key={p._id}><Td><Ref>{p.poNo}</Ref></Td><Td>{p.supplier?.name}</Td><Td>{p.branch?.name}</Td><Td>{p.items.map((i: any) => `${i.name} ×${i.qty}`).join(", ")}</Td><Td className="whitespace-nowrap tabular-nums">{money(p.total)}</Td><Td><StatusBadge s={p.status} /></Td>
                 <Td className="whitespace-nowrap text-right">
                   {p.status === "draft" && can("branch_manager", "accountant") && <Button size="sm" onClick={() => doAct(p._id, "approve")}>Approve</Button>}
                   {p.status === "approved" && <Button size="sm" onClick={() => doAct(p._id, "send")}>Send to supplier</Button>}

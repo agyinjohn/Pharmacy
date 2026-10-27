@@ -26,9 +26,9 @@ export default function Sales() {
           <Table head={["Receipt", "When", "Branch", "Cashier", "Customer", "Total", "Status", ""]} empty="No sales">
             {rows.map((s: any) => (
               <tr key={s._id}>
-                <Td className="font-mono text-xs">{s.receiptNo} {s.offlineAt && <Badge tone="blue">offline</Badge>}</Td><Td>{dateTime(s.createdAt)}</Td><Td>{s.branch?.name}</Td><Td>{s.cashier?.name}</Td><Td>{s.customer?.name || "-"}</Td>
-                <Td className="tabular-nums">{money(s.total)}</Td><Td><StatusBadge s={s.status} />{s.flags?.length > 0 && <Badge tone="red">{s.flags.length} flag</Badge>}</Td>
-                <Td className="text-right"><Button size="sm" variant="outline" onClick={() => open(s._id)}>Open</Button></Td>
+                <Td className="whitespace-nowrap text-xs font-medium tabular-nums tracking-wide text-slate-500">{s.receiptNo} {s.offlineAt && <Badge tone="blue">offline</Badge>}</Td><Td>{dateTime(s.createdAt)}</Td><Td>{s.branch?.name}</Td><Td>{s.cashier?.name}</Td><Td>{s.customer?.name || "-"}</Td>
+                <Td className="whitespace-nowrap tabular-nums">{money(s.total)}</Td><Td><StatusBadge s={s.status} />{s.flags?.length > 0 && <Badge tone="red">{s.flags.length} flag</Badge>}</Td>
+                <Td className="text-right"><Button size="sm" variant="ghost" onClick={() => open(s._id)}>View</Button></Td>
               </tr>
             ))}
           </Table>

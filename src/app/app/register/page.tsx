@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
 import { dateTime } from "@/lib/api";
 import { downloadExport } from "@/lib/download";
-import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, Table, Td } from "@/components/ui";
+import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, Table, Td, Ref } from "@/components/ui";
 
 export default function Register() {
   const { call, token, branch, can } = useAuth();
@@ -38,7 +38,7 @@ export default function Register() {
           <Table head={["Date", "Drug", "Type", "Qty", "Balance", "Patient / counterparty", "Prescriber", "Rx", "Batch", "Pharmacist", "Witness"]} empty="No entries">
             {(rows.data || []).map((r: any) => (
               <tr key={r._id}><Td className="whitespace-nowrap">{dateTime(r.date)}</Td><Td className="font-medium">{r.productName}</Td><Td><Badge tone={r.type === "receipt" ? "green" : r.type === "supply" ? "blue" : "amber"}>{r.type}</Badge></Td>
-                <Td>{r.type === "receipt" || r.type === "correction" ? "+" : "-"}{r.qty}</Td><Td className="font-semibold">{r.balance}</Td><Td>{r.patient || r.counterparty}</Td><Td>{r.prescriber}</Td><Td className="font-mono text-xs">{r.rxNo}</Td><Td className="font-mono text-xs">{r.batchNo}</Td><Td>{r.pharmacistName}</Td><Td>{r.witness}</Td></tr>
+                <Td>{r.type === "receipt" || r.type === "correction" ? "+" : "-"}{r.qty}</Td><Td className="font-semibold">{r.balance}</Td><Td>{r.patient || r.counterparty}</Td><Td>{r.prescriber}</Td><Td><Ref>{r.rxNo}</Ref></Td><Td><Ref>{r.batchNo}</Ref></Td><Td>{r.pharmacistName}</Td><Td>{r.witness}</Td></tr>
             ))}
           </Table>
         )}
