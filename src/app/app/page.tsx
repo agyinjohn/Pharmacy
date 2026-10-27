@@ -29,8 +29,8 @@ export default function Dashboard() {
             <Stat label="Sales today" value={money(data.totals.todaySales)} sub={`${data.totals.todayCount} transactions`} />
             <Stat label="Low stock" value={data.totals.lowStock} tone={data.totals.lowStock ? "amber" : undefined} sub="products at or under reorder level" />
             <Stat label="Expiring ≤ 90 days" value={data.totals.nearExpiry} tone={data.totals.nearExpiry ? "red" : undefined} sub="batches" />
-            <Stat label="Open online orders" value={data.totals.openOrders} sub={<Link href="/app/orders" className="text-teal-700 hover:underline">View orders</Link>} />
-            <Stat label="Rx awaiting pharmacist" value={data.totals.pendingRx} tone={data.totals.pendingRx ? "amber" : undefined} sub={<Link href="/app/prescriptions" className="text-teal-700 hover:underline">Review</Link>} />
+            <Stat label="Open online orders" value={data.totals.openOrders} sub={<Link href="/app/orders" className="text-brand-700 hover:underline">View orders</Link>} />
+            <Stat label="Rx awaiting pharmacist" value={data.totals.pendingRx} tone={data.totals.pendingRx ? "amber" : undefined} sub={<Link href="/app/prescriptions" className="text-brand-700 hover:underline">Review</Link>} />
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
@@ -38,9 +38,10 @@ export default function Dashboard() {
               <h2 className="font-semibold">Sales, last 14 days</h2>
               <div className="mt-4 flex h-48 items-end gap-2" role="img" aria-label="Daily sales bar chart">
                 {data.series.map((s: any) => (
-                  <div key={s.date} className="group flex flex-1 flex-col items-center justify-end gap-1">
-                    <div className="hidden text-[10px] text-slate-500 group-hover:block">{Math.round(s.total)}</div>
-                    <div title={`${s.date}: ${money(s.total)}`} className="w-full rounded-t bg-teal-600 transition group-hover:bg-teal-800" style={{ height: `${Math.max(3, (s.total / max) * 100)}%` }} />
+                  <div key={s.date} className="group flex h-full flex-1 flex-col items-center gap-1">
+                    <div className="flex w-full flex-1 items-end">
+                      <div title={`${s.date}: ${money(s.total)}`} className="w-full rounded-sm bg-slate-300 transition group-hover:bg-brand-700" style={{ height: `${Math.max(3, (s.total / max) * 100)}%` }} />
+                    </div>
                     <div className="text-[10px] text-slate-400">{s.date.slice(8)}</div>
                   </div>
                 ))}
@@ -52,7 +53,7 @@ export default function Dashboard() {
               <ol className="mt-4 space-y-3">
                 {data.topProducts.map((p: any, i: number) => (
                   <li key={p.name} className="flex items-center justify-between gap-3 text-sm">
-                    <span className="flex min-w-0 items-center gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-teal-50 text-xs font-semibold text-teal-800">{i + 1}</span><span className="truncate">{p.name}</span></span>
+                    <span className="flex min-w-0 items-center gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand-50 text-xs font-semibold text-brand-800">{i + 1}</span><span className="truncate">{p.name}</span></span>
                     <span className="shrink-0 tabular-nums text-slate-600">{money(p.revenue)}</span>
                   </li>
                 ))}

@@ -17,7 +17,7 @@ export default function OfflineBanner() {
   return (
     <>
       {(!online || queue.length > 0) && (
-        <div className={`no-print mb-4 flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm ${!online ? "border-amber-300 bg-amber-50 text-amber-900" : "border-sky-200 bg-sky-50 text-sky-900"}`}>
+        <div className={`no-print mb-4 flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm ${!online ? "border-amber-300 bg-amber-50 text-amber-900" : "border-slate-200 bg-slate-50 text-slate-900"}`}>
           {!online ? <WifiOff className="h-4 w-4" /> : <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />}
           <span>{!online ? "Offline: sales, goods received and dispensing of verified prescriptions are saved on this device and sent when the connection returns." : "Work done offline is waiting to sync."} {queue.length > 0 && <b>{waiting} waiting{rejected ? `, ${rejected} need attention` : ""}.</b>}</span>
           {queue.length > 0 && <Button size="sm" variant="outline" onClick={() => setOpen(true)}>View</Button>}

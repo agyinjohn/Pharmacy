@@ -53,7 +53,7 @@ export default function Import() {
           <Select label="What are you importing?" value={type} onChange={(e) => { setType(e.target.value); setFile(null); setReport(null); }}>{TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select>
           <p className="text-sm text-slate-600">{TYPES.find((t) => t[0] === type)?.[2]}{type === "stock" && ` Rows without branchCode go to ${branch?.name}.`}</p>
           <Button variant="outline" onClick={template}><Download className="h-4 w-4" />Download template</Button>
-          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 p-6 text-sm text-slate-600 hover:border-teal-500">
+          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 p-6 text-sm text-slate-600 hover:border-brand-500">
             <FileUp className="h-5 w-5" />{file ? file.name : "Choose a .csv or .xlsx file"}
             <input type="file" accept=".csv,.xlsx" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) pick(f); }} />
           </label>

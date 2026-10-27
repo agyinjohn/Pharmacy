@@ -19,8 +19,8 @@ export default function DemoForm() {
   if (state === "done") {
     return (
       <div className="flex flex-col items-center gap-3 py-10 text-center">
-        <CheckCircle2 className="h-12 w-12 text-emerald-600" />
-        <h3 className="text-xl font-semibold text-slate-900">Thanks, we will be in touch</h3>
+        <CheckCircle2 className="h-10 w-10 text-slate-400" strokeWidth={1.5} />
+        <h3 className="text-lg font-semibold text-slate-900">Thanks, we will be in touch</h3>
         <p className="max-w-sm text-sm text-slate-600">We will contact you within one working day to schedule a walkthrough for your pharmacy.</p>
       </div>
     );

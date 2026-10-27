@@ -33,7 +33,7 @@ function Security({ call, enabled, refresh }: any) {
   const disable = async () => { setErr(null); try { await call("/auth/2fa/disable", { body: { code, password: pw }, branch: null }); setCode(""); setPw(""); setMsg("Two-step sign-in is off."); refresh(); } catch (e: any) { setErr(e.message); } };
   return (
     <Card className="max-w-xl p-5">
-      <h2 className="flex items-center gap-2 font-semibold"><ShieldCheck className="h-5 w-5 text-teal-700" />Two-step sign-in {enabled ? <Badge tone="green">On</Badge> : <Badge tone="slate">Off</Badge>}</h2>
+      <h2 className="flex items-center gap-2 font-semibold"><ShieldCheck className="h-5 w-5 text-brand-700" />Two-step sign-in {enabled ? <Badge tone="green">On</Badge> : <Badge tone="slate">Off</Badge>}</h2>
       <p className="mt-1 text-sm text-slate-600">Use an authenticator app (Google Authenticator, Microsoft Authenticator, Authy). Recommended for owners, managers and pharmacists.</p>
       {msg && <p className="mt-3 text-sm text-emerald-700">{msg}</p>}
       <div className="mt-4 space-y-3">

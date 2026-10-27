@@ -144,12 +144,12 @@ export default function POS() {
         <div className="space-y-4 lg:col-span-3">
           <Card className="p-4">
             <form onSubmit={scan} className="flex gap-2">
-              <div className="relative flex-1"><ScanLine className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input ref={barcodeRef} name="barcode" autoComplete="off" placeholder="Scan barcode and press Enter" className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20" /></div>
+              <div className="relative flex-1"><ScanLine className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input ref={barcodeRef} name="barcode" autoComplete="off" placeholder="Scan barcode and press Enter" className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20" /></div>
             </form>
-            <div className="relative mt-3"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search brand or generic name" className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20" /></div>
+            <div className="relative mt-3"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search brand or generic name" className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20" /></div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {results.map((p) => (
-                <button key={p._id} onClick={() => add(p)} className="rounded-lg border border-slate-200 p-3 text-left hover:border-teal-500 hover:bg-teal-50/40">
+                <button key={p._id} onClick={() => add(p)} className="rounded-lg border border-slate-200 p-3 text-left hover:border-brand-500 hover:bg-brand-50/40">
                   <div className="flex items-start justify-between gap-2"><span className="text-sm font-medium">{p.brand} {p.strength}</span><span className="text-sm font-semibold tabular-nums">{money(p.price)}</span></div>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">{p.generic}
                     {p.legalStatus === "prescription_only" && <Badge tone="amber">Rx</Badge>}{p.legalStatus === "controlled" && <Badge tone="red">Controlled</Badge>}{p.legalStatus === "pharmacy_only" && <Badge tone="blue">Pharmacy only</Badge>}
@@ -191,7 +191,7 @@ export default function POS() {
                 </div>
               )}
               <div className="relative">
-                {customer ? <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"><span>{customer.name} <span className="text-slate-500">{customer.phone}</span>{customer.loyaltyPoints > 0 && <Badge tone="violet">{customer.loyaltyPoints} pts</Badge>}</span><button className="text-xs text-teal-700" onClick={() => setCustomer(null)}>Remove</button></div> : (
+                {customer ? <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"><span>{customer.name} <span className="text-slate-500">{customer.phone}</span>{customer.loyaltyPoints > 0 && <Badge tone="violet">{customer.loyaltyPoints} pts</Badge>}</span><button className="text-xs text-brand-700" onClick={() => setCustomer(null)}>Remove</button></div> : (
                   <>
                     <Input placeholder="Attach customer (optional)" value={custQ} onChange={(e) => setCustQ(e.target.value)} />
                     {custList.length > 0 && <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">{custList.map((c) => <button key={c._id} onClick={() => { setCustomer(c); setCustQ(""); setCustList([]); }} className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50">{c.name} <span className="text-slate-500">{c.phone}</span>{c.creditLimit > 0 && <Badge tone="blue">Credit</Badge>}</button>)}</div>}
@@ -202,7 +202,7 @@ export default function POS() {
                 <Input label={`Discount (max ${money(limit)})`} type="number" min={0} step="0.01" value={discount || ""} onChange={(e) => setDiscount(Number(e.target.value))} />
                 <div className="text-right text-sm text-slate-600"><div>Subtotal {money(subtotal)}</div>{promoTotal > 0 && <div className="text-emerald-700">Promotions -{money(promoTotal)}</div>}{tax > 0 && <div>Tax {money(tax)}</div>}</div>
               </div>
-              <div className="flex items-baseline justify-between border-t border-slate-200 pt-3"><span className="font-medium">Total</span><span className="text-2xl font-bold tabular-nums">{money(total)}</span></div>
+              <div className="flex items-baseline justify-between border-t border-slate-200 pt-3"><span className="font-medium">Total</span><span className="text-2xl font-semibold tabular-nums tracking-tight">{money(total)}</span></div>
 
               <div className="space-y-2">
                 {pays.map((p, i) => (
@@ -214,7 +214,7 @@ export default function POS() {
                     <Button size="sm" variant="outline" onClick={() => setPays(pays.map((x, k) => (k === i ? { ...x, amount: String(Math.max(0, total - paid + (Number(x.amount) || 0)).toFixed(2)) } : x)))}>Rest</Button>
                   </div>
                 ))}
-                <div className="flex items-center justify-between text-sm"><button onClick={() => setPays([...pays, { method: "momo", amount: "" }])} className="text-teal-700 hover:underline">+ Split payment</button>{change > 0 && <span className="font-medium text-emerald-700">Change {money(change)}</span>}</div>
+                <div className="flex items-center justify-between text-sm"><button onClick={() => setPays([...pays, { method: "momo", amount: "" }])} className="text-brand-700 hover:underline">+ Split payment</button>{change > 0 && <span className="font-medium text-emerald-700">Change {money(change)}</span>}</div>
               </div>
               <ErrorNote error={error} />
               <div className="flex gap-2">

@@ -30,7 +30,7 @@ export default function Login() {
     <main className="grid min-h-screen lg:grid-cols-2">
       <div className="flex flex-col justify-center px-6 py-12 sm:px-16">
         <Link href="/"><Logo /></Link>
-        <h1 className="mt-10 text-3xl font-bold tracking-tight">Sign in to your pharmacy</h1>
+        <h1 className="mt-10 text-2xl font-semibold tracking-tight">Sign in to your pharmacy</h1>
         <form onSubmit={submit} className="mt-8 max-w-sm space-y-4">
           <Input label="Email" type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
           <Input label="Password" type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
@@ -38,19 +38,19 @@ export default function Login() {
           <ErrorNote error={error} />
           <Button type="submit" size="lg" loading={busy} className="w-full">Sign in</Button>
         </form>
-        <p className="mt-6 text-sm text-slate-600">New pharmacy? <Link href="/signup" className="font-medium text-teal-700 hover:underline">Create a workspace</Link></p>
+        <p className="mt-6 text-sm text-slate-600">New pharmacy? <Link href="/signup" className="font-medium text-slate-900 underline underline-offset-4">Create a workspace</Link></p>
       </div>
-      <div className="hidden flex-col justify-center bg-teal-900 p-16 text-white lg:flex">
-        <h2 className="text-2xl font-semibold">Demo accounts</h2>
-        <p className="mt-2 text-sm text-teal-200">Password for all: <code className="rounded bg-white/10 px-1.5 py-0.5">Demo@1234</code>. Click one to fill it in.</p>
+      <div className="hidden flex-col justify-center border-l border-slate-200 bg-[#f7f7f6] p-16 lg:flex">
+        <h2 className="text-xl font-semibold">Demo accounts</h2>
+        <p className="mt-2 text-sm text-slate-600">Password for all: <code className="rounded bg-white px-1.5 py-0.5 ring-1 ring-slate-200">Demo@1234</code>. Click one to fill it in.</p>
         <div className="mt-6 grid max-w-md gap-2">
           {DEMO.map(([e, r]) => (
-            <button key={e} type="button" onClick={() => { setEmail(e); setPassword("Demo@1234"); }} className="flex items-center justify-between rounded-lg bg-white/10 px-4 py-2.5 text-left text-sm hover:bg-white/20">
-              <span>{r}</span><span className="text-teal-200">{e}</span>
+            <button key={e} type="button" onClick={() => { setEmail(e); setPassword("Demo@1234"); }} className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-2.5 text-left text-sm hover:border-slate-300">
+              <span className="text-slate-900">{r}</span><span className="text-slate-500">{e}</span>
             </button>
           ))}
         </div>
-        <Link href="/shop/medicare" className="mt-8 text-sm text-teal-200 underline">Customer portal demo store →</Link>
+        <Link href="/shop/medicare" className="mt-8 text-sm text-slate-600 underline underline-offset-4">Customer portal demo store →</Link>
       </div>
     </main>
   );

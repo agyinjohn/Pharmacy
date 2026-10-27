@@ -122,7 +122,7 @@ export default function Prescriptions() {
               </div>
             )}
 
-            {open.notes?.length > 0 && <div><div className="mb-1 font-semibold">Pharmacist notes</div>{open.notes.map((n: any, i: number) => <div key={i} className="border-l-2 border-teal-200 pl-3 text-slate-700"><span className="text-xs text-slate-500">{dateTime(n.at)} · {n.by?.name} · {n.type}</span><div>{n.text}</div></div>)}</div>}
+            {open.notes?.length > 0 && <div><div className="mb-1 font-semibold">Pharmacist notes</div>{open.notes.map((n: any, i: number) => <div key={i} className="border-l-2 border-brand-200 pl-3 text-slate-700"><span className="text-xs text-slate-500">{dateTime(n.at)} · {n.by?.name} · {n.type}</span><div>{n.text}</div></div>)}</div>}
             {open.verifiedBy && <p className="text-slate-600">Verified by {open.verifiedBy.name} on {dateTime(open.verifiedAt)}</p>}
             {open.rejectedReason && <p className="text-red-700">Rejected: {open.rejectedReason}</p>}
             <ErrorNote error={err} />
@@ -154,7 +154,7 @@ export default function Prescriptions() {
             </div>
           ))}
         </div>
-        {madeReminders.length > 0 && <div className="no-print mt-4 rounded-lg bg-teal-50 p-3 text-sm text-teal-900"><b>Dose reminders set up:</b> {madeReminders.map((m) => `${m.medicine} at ${m.times.join(", ")}${m.endDate ? ` until ${dateFmt(m.endDate)}` : ""}`).join("; ")}. The patient can pause or stop them in the online store. Change them on the customer record.</div>}
+        {madeReminders.length > 0 && <div className="no-print mt-4 rounded-lg bg-brand-50 p-3 text-sm text-brand-900"><b>Dose reminders set up:</b> {madeReminders.map((m) => `${m.medicine} at ${m.times.join(", ")}${m.endDate ? ` until ${dateFmt(m.endDate)}` : ""}`).join("; ")}. The patient can pause or stop them in the online store. Change them on the customer record.</div>}
         <Button className="no-print mt-4" onClick={() => window.print()}><Printer className="h-4 w-4" />Print labels</Button>
       </Modal>
 

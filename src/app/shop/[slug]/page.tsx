@@ -38,23 +38,23 @@ export default function Shop({ params }: { params: Promise<{ slug: string }> }) 
   const showAlt = async (p: any) => setAlt({ p, list: await api(`/portal/${slug}/products/${p._id}/alternatives?branch=${branchId}`) });
   const count = cart.reduce((s, i) => s + i.qty, 0);
 
-  if (shop.error) return <div className="grid min-h-screen place-items-center p-6 text-center"><div><h1 className="text-xl font-semibold">Pharmacy not found</h1><p className="mt-2 text-slate-600">Check the link, or <Link href="/" className="text-teal-700 underline">visit PharmaOne</Link>.</p></div></div>;
+  if (shop.error) return <div className="grid min-h-screen place-items-center p-6 text-center"><div><h1 className="text-xl font-semibold">Pharmacy not found</h1><p className="mt-2 text-slate-600">Check the link, or <Link href="/" className="text-brand-700 underline">visit PharmaOne</Link>.</p></div></div>;
   if (!shop.data) return <Spinner />;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#fafafa]">
       <ShopHeader shop={shop.data} slug={slug} right={<>
         {auth.customer ? <><Link href={`/shop/${slug}/orders`} className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">My orders</Link><button onClick={auth.logout} className="hidden text-sm text-slate-500 sm:block">Sign out</button></> : <Button size="sm" variant="outline" onClick={() => setLoginOpen(true)}><User className="h-4 w-4" />Sign in</Button>}
         <Button size="sm" onClick={() => setCartOpen(true)}><ShoppingBag className="h-4 w-4" />Cart{count > 0 && <span className="rounded-full bg-white/25 px-1.5 text-xs">{count}</span>}</Button>
       </>} />
 
-      <section className="bg-gradient-to-br from-teal-700 to-teal-900 text-white">
+      <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-8">
-          <h1 className="text-2xl font-bold sm:text-3xl">Medicines and health products, delivered</h1>
-          <p className="mt-1 text-teal-100">Search, order and pay online. Prescription items are checked by a registered pharmacist.</p>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Medicines and health products, delivered</h1>
+          <p className="mt-1 text-slate-600">Search, order and pay online. Prescription items are checked by a registered pharmacist.</p>
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <div className="relative sm:col-span-2"><Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search brand, generic name or symptom (headache, malaria...)" className="w-full rounded-lg py-3 pl-10 pr-3 text-slate-900 outline-none" aria-label="Search medicines" /></div>
-            <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="rounded-lg px-3 py-3 text-slate-900" aria-label="Choose branch">{shop.data.branches.map((b: any) => <option key={b._id} value={b._id}>{b.name}{b.online ? "" : " (online ordering unavailable)"}</option>)}</select>
+            <div className="relative sm:col-span-2"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search brand, generic name or symptom (headache, malaria...)" className="w-full rounded-md border border-slate-300 py-2.5 pl-10 pr-3 text-slate-900 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-900/10" aria-label="Search medicines" /></div>
+            <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="rounded-md border border-slate-300 bg-white px-3 py-2.5 text-slate-900" aria-label="Choose branch">{shop.data.branches.map((b: any) => <option key={b._id} value={b._id}>{b.name}{b.online ? "" : " (online ordering unavailable)"}</option>)}</select>
           </div>
         </div>
       </section>
@@ -63,16 +63,16 @@ export default function Shop({ params }: { params: Promise<{ slug: string }> }) 
         {branch && !branch.online && <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">This branch is not taking online orders right now. Please choose another branch.</div>}
         <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
           {["all", ...(cats.data?.symptoms || []), ...(cats.data?.categories || []).filter((c: string) => !(cats.data?.symptoms || []).includes(c))].map((c: string) => (
-            <button key={c} onClick={() => setCat(c)} className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm ${cat === c ? "border-teal-700 bg-teal-700 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-teal-500"}`}>{c === "all" ? "All" : c}</button>
+            <button key={c} onClick={() => setCat(c)} className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm ${cat === c ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"}`}>{c === "all" ? "All" : c}</button>
           ))}
         </div>
         {products.loading && !products.data ? <Spinner /> : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {(products.data || []).map((p: any) => (
               <Card key={p._id} className="flex flex-col p-4">
-                <div className="flex items-start justify-between gap-2"><div><h3 className="font-semibold text-slate-900">{p.brand} {p.strength}</h3><p className="text-sm text-slate-500">{p.generic} · {p.form} · {p.packSize}</p></div><div className="text-right text-lg font-bold tabular-nums">{money(p.price)}</div></div>
+                <div className="flex items-start justify-between gap-2"><div><h3 className="font-medium text-slate-900">{p.brand} {p.strength}</h3><p className="text-sm text-slate-500">{p.generic} · {p.form} · {p.packSize}</p></div><div className="whitespace-nowrap text-right font-semibold tabular-nums">{money(p.price)}</div></div>
                 <div className="mt-2 flex flex-wrap gap-1.5">{p.promo && <Badge tone="violet">{p.promo}</Badge>}{p.requiresRx ? <Badge tone="amber"><FileText className="mr-1 h-3 w-3" />Prescription needed</Badge> : <Badge tone="green">No prescription</Badge>}<Badge tone={p.inStock ? (p.stock < 10 ? "amber" : "green") : "red"}>{p.inStock ? (p.stock < 10 ? `Only ${p.stock} left` : "In stock") : "Out of stock here"}</Badge></div>
-                <div className="mt-auto pt-4">{p.inStock ? <Button className="w-full" onClick={() => { add(p); }} disabled={!branch?.online}><Plus className="h-4 w-4" />Add to cart</Button> : <Button className="w-full" variant="outline" onClick={() => showAlt(p)}>See substitutes</Button>}</div>
+                <div className="mt-auto pt-4">{p.inStock ? <Button className="w-full" variant="outline" onClick={() => { add(p); }} disabled={!branch?.online}><Plus className="h-4 w-4" />Add to cart</Button> : <Button className="w-full" variant="outline" onClick={() => showAlt(p)}>See substitutes</Button>}</div>
               </Card>
             ))}
             {products.data && !products.data.length && <p className="col-span-full py-12 text-center text-slate-500">No medicines found. Try another search.</p>}
@@ -87,7 +87,7 @@ export default function Shop({ params }: { params: Promise<{ slug: string }> }) 
         {alt?.list.length ? alt.list.map((a) => <div key={a._id} className="flex items-center justify-between border-b border-slate-100 py-2 text-sm"><span>{a.brand} {a.strength}<div className="text-xs text-slate-500">{a.requiresRx ? "Prescription needed" : "No prescription"}</div></span><span className="flex items-center gap-2">{money(a.price)}{a.stock > 0 ? <Button size="sm" onClick={() => { add({ ...a, inStock: true, taxRate: 0 }); setAlt(null); }}>Add</Button> : <Badge tone="red">Out of stock</Badge>}</span></div>) : <p className="text-sm text-slate-600">No substitutes available at this branch. Try another branch from the selector above.</p>}
       </Modal>
       <Modal open={!!placed} onClose={() => setPlaced(null)} title="Order placed">
-        {placed && <div className="space-y-2 text-sm"><p className="text-lg font-semibold text-emerald-700">Thank you!</p><p>Your order <b>{placed.orderNo}</b> is {placed.status === "pending_review" ? "waiting for the pharmacist to review your prescription" : "received"}. We will send updates by SMS.</p><Link href={`/shop/${slug}/orders`} className="inline-block rounded-lg bg-teal-700 px-4 py-2 font-medium text-white">Track my order</Link></div>}
+        {placed && <div className="space-y-2 text-sm"><p className="text-lg font-semibold text-emerald-700">Thank you!</p><p>Your order <b>{placed.orderNo}</b> is {placed.status === "pending_review" ? "waiting for the pharmacist to review your prescription" : "received"}. We will send updates by SMS.</p><Link href={`/shop/${slug}/orders`} className="inline-block rounded-lg bg-brand-700 px-4 py-2 font-medium text-white">Track my order</Link></div>}
       </Modal>
     </div>
   );
@@ -178,8 +178,8 @@ function Cart({ open, onClose, cart, setCart, branch, shop, slug, auth, needLogi
           )}
 
           <div className="grid gap-2 sm:grid-cols-2">
-            <button onClick={() => setFulfilment("delivery")} className={`rounded-lg border p-3 text-left text-sm ${fulfilment === "delivery" ? "border-teal-700 bg-teal-50" : "border-slate-300"}`}><div className="font-medium">Delivery</div><div className="text-slate-500">To your door</div></button>
-            <button onClick={() => { setFulfilment("pickup"); if (method === "cod") setMethod("momo"); }} className={`rounded-lg border p-3 text-left text-sm ${fulfilment === "pickup" ? "border-teal-700 bg-teal-50" : "border-slate-300"}`}><div className="font-medium">Pick up in store</div><div className="text-slate-500">{branch?.name}</div></button>
+            <button onClick={() => setFulfilment("delivery")} className={`rounded-md border p-3 text-left text-sm ${fulfilment === "delivery" ? "border-slate-900" : "border-slate-300"}`}><div className="font-medium">Delivery</div><div className="text-slate-500">To your door</div></button>
+            <button onClick={() => { setFulfilment("pickup"); if (method === "cod") setMethod("momo"); }} className={`rounded-md border p-3 text-left text-sm ${fulfilment === "pickup" ? "border-slate-900" : "border-slate-300"}`}><div className="font-medium">Pick up in store</div><div className="text-slate-500">{branch?.name}</div></button>
           </div>
           {fulfilment === "delivery" && (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -190,7 +190,7 @@ function Cart({ open, onClose, cart, setCart, branch, shop, slug, auth, needLogi
           )}
           <div>
             <div className="mb-1 text-sm font-medium">Payment</div>
-            <div className="flex flex-wrap gap-2">{[["momo", "Mobile money"], ["card", "Card"], ...(shop.codEnabled && fulfilment === "delivery" ? [["cod", "Pay on delivery"]] : [])].map(([v, l]) => <button key={v} onClick={() => setMethod(v)} className={`rounded-full border px-4 py-1.5 text-sm ${method === v ? "border-teal-700 bg-teal-700 text-white" : "border-slate-300"}`}>{l}</button>)}</div>
+            <div className="flex flex-wrap gap-2">{[["momo", "Mobile money"], ["card", "Card"], ...(shop.codEnabled && fulfilment === "delivery" ? [["cod", "Pay on delivery"]] : [])].map(([v, l]) => <button key={v} onClick={() => setMethod(v)} className={`rounded-full border px-4 py-1.5 text-sm ${method === v ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300"}`}>{l}</button>)}</div>
             {method !== "cod" && <p className="mt-1 text-xs text-slate-500">Demo checkout: payment is simulated. Card details are never stored.</p>}
           </div>
 

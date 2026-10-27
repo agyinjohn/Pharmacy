@@ -32,13 +32,13 @@ export default function Rider() {
   return (
     <div className="mx-auto max-w-xl">
       <PageHeader title="My deliveries" subtitle="Assigned to you. Ask the customer for their 4-digit code on arrival." />
-      {data && data.length > 0 && <label className="mb-4 flex items-center gap-2 rounded-lg bg-teal-50 p-3 text-sm"><input type="checkbox" checked={sharing} onChange={(e) => setSharing(e.target.checked)} />Share my live location with customers while I deliver</label>}
+      {data && data.length > 0 && <label className="mb-4 flex items-center gap-2 rounded-lg bg-brand-50 p-3 text-sm"><input type="checkbox" checked={sharing} onChange={(e) => setSharing(e.target.checked)} />Share my live location with customers while I deliver</label>}
       <ErrorNote error={error || err} />
       {loading && !data ? <Spinner /> : (data || []).map((o: any) => (
         <Card key={o._id} className="mb-4 p-4">
           <div className="flex items-center justify-between"><span className="font-mono text-xs">{o.orderNo}</span>{o.items.some((i: any) => i.requiresRx) && <Badge tone="amber">Prescription - hand to the verified recipient only</Badge>}</div>
           <div className="mt-2 text-lg font-semibold">{o.customer?.name}</div>
-          <a href={`tel:${o.customer?.phone}`} className="mt-1 flex items-center gap-2 text-sm text-teal-700"><Phone className="h-4 w-4" />{o.customer?.phone}</a>
+          <a href={`tel:${o.customer?.phone}`} className="mt-1 flex items-center gap-2 text-sm text-brand-700"><Phone className="h-4 w-4" />{o.customer?.phone}</a>
           <div className="mt-1 flex items-start gap-2 text-sm"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><span>{o.address?.line} {o.address?.digitalAddress && `(${o.address.digitalAddress})`}</span></div>
           <div className="mt-2 text-sm text-slate-600">Pickup from {o.branch?.name} · {o.items.length} item(s){o.payment.method === "cod" && <b> · Collect {money(o.total)} cash</b>}</div>
           <div className="mt-3 grid gap-2"><Input placeholder="Recipient name" value={f(o._id).recipient} onChange={(e) => set(o._id, "recipient", e.target.value)} /><Input placeholder="Customer's code" inputMode="numeric" value={f(o._id).code} onChange={(e) => set(o._id, "code", e.target.value)} /><Button size="lg" onClick={() => deliver(o)}>Confirm delivered</Button>

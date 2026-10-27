@@ -19,7 +19,7 @@ export default function Signup() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
       <Link href="/"><Logo /></Link>
-      <h1 className="mt-8 text-3xl font-bold tracking-tight">Create your pharmacy workspace</h1>
+      <h1 className="mt-8 text-2xl font-semibold tracking-tight">Create your pharmacy workspace</h1>
       <p className="mt-2 text-slate-600">Start with one branch. Add more any time.</p>
       <form onSubmit={submit} className="mt-8 grid gap-4 sm:grid-cols-2">
         <Input label="Pharmacy / company name" required value={f.orgName} onChange={set("orgName")} className="" />
@@ -31,7 +31,7 @@ export default function Signup() {
         <div className="sm:col-span-2"><Input label="Password" type="password" required minLength={8} value={f.password} onChange={set("password")} hint="At least 8 characters" /></div>
         <div className="space-y-3 sm:col-span-2"><ErrorNote error={error} /><Button type="submit" size="lg" loading={busy} className="w-full">Create workspace</Button></div>
       </form>
-      <p className="mt-6 text-sm text-slate-600">Already registered? <Link href="/login" className="font-medium text-teal-700 hover:underline">Sign in</Link></p>
+      <p className="mt-6 text-sm text-slate-600">Already registered? <Link href="/login" className="font-medium text-slate-900 underline underline-offset-4">Sign in</Link></p>
     </main>
   );
 }

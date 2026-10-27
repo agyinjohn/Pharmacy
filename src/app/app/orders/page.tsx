@@ -72,7 +72,7 @@ export default function Orders() {
                 </div>
                 {pharm && !edit && <Button variant="outline" onClick={startEdit}>Change items / substitute</Button>}
                 {edit && (
-                  <div className="space-y-2 rounded-lg border border-teal-200 bg-teal-50/40 p-3">
+                  <div className="space-y-2 rounded-lg border border-brand-200 bg-brand-50/40 p-3">
                     <div className="font-medium">Change the order</div>
                     {edit.map((l, k) => (
                       <div key={k} className="flex flex-wrap items-center gap-2">

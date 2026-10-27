@@ -35,16 +35,16 @@ export default function MyOrders({ params }: { params: Promise<{ slug: string }>
   const erasure = async () => { if (!confirm("Ask the pharmacy to erase your personal data? Records they must keep by law stay for the required period.")) return; try { const r = await auth.call("/portal/me/erasure-request", { body: {} }); alert(r.message); } catch (e: any) { setErr(e.message); } };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <ShopHeader shop={shop.data} slug={slug} right={<Link href={`/shop/${slug}`} className="text-sm font-medium text-teal-700">Continue shopping</Link>} />
+    <div className="min-h-screen bg-[#fafafa]">
+      <ShopHeader shop={shop.data} slug={slug} right={<Link href={`/shop/${slug}`} className="text-sm font-medium text-brand-700">Continue shopping</Link>} />
       <main className="mx-auto max-w-3xl px-4 py-8">
-        <div className="mb-6 flex items-center justify-between"><h1 className="text-2xl font-bold">My orders{auth.customer?.loyaltyPoints > 0 && <span className="ml-3 align-middle text-sm font-medium text-violet-700">{auth.customer.loyaltyPoints} loyalty points</span>}</h1>{auth.token && <span className="space-x-4 text-sm text-slate-500"><button onClick={exportData} className="underline">Download my data</button><button onClick={erasure} className="underline">Erase my data</button></span>}</div>
-        {!auth.ready ? <Spinner /> : !auth.token ? <p className="text-slate-600">Please <Link href={`/shop/${slug}`} className="text-teal-700 underline">sign in</Link> from the store page to see your orders.</p> : (
+        <div className="mb-6 flex items-center justify-between"><h1 className="text-2xl font-semibold tracking-tight">My orders{auth.customer?.loyaltyPoints > 0 && <span className="ml-3 align-middle text-sm font-medium text-slate-700">{auth.customer.loyaltyPoints} loyalty points</span>}</h1>{auth.token && <span className="space-x-4 text-sm text-slate-500"><button onClick={exportData} className="underline">Download my data</button><button onClick={erasure} className="underline">Erase my data</button></span>}</div>
+        {!auth.ready ? <Spinner /> : !auth.token ? <p className="text-slate-600">Please <Link href={`/shop/${slug}`} className="text-brand-700 underline">sign in</Link> from the store page to see your orders.</p> : (
           <>
             <ErrorNote error={err || orders.error} />
             {(reminders.data || []).length > 0 && (
               <Card className="mb-6 p-5">
-                <h2 className="flex items-center gap-2 text-lg font-semibold"><BellRing className="h-5 w-5 text-teal-700" />My medication reminders</h2>
+                <h2 className="flex items-center gap-2 text-lg font-semibold"><BellRing className="h-5 w-5 text-brand-700" />My medication reminders</h2>
                 <p className="text-sm text-slate-500">We send a text at these times. Pause or stop them any time.</p>
                 <div className="mt-3 divide-y divide-slate-100">
                   {(reminders.data || []).map((r: any) => (
@@ -78,14 +78,14 @@ export default function MyOrders({ params }: { params: Promise<{ slug: string }>
                   {o.reviewNote && dead && <p className="mt-2 rounded bg-red-50 p-2 text-sm text-red-800">{o.reviewNote}</p>}
                   {!dead && (
                     <ol className="mt-4 flex items-center" aria-label="Order progress">{STEPS.map((s, i) => (
-                      <li key={s} className="flex flex-1 items-center last:flex-none"><span className={`grid h-6 w-6 place-items-center rounded-full text-xs ${i <= idx ? "bg-teal-700 text-white" : "bg-slate-200 text-slate-500"}`}>{i < idx ? <Check className="h-3.5 w-3.5" /> : i + 1}</span>{i < STEPS.length - 1 && <span className={`mx-1 h-0.5 flex-1 ${i < idx ? "bg-teal-700" : "bg-slate-200"}`} />}</li>))}</ol>
+                      <li key={s} className="flex flex-1 items-center last:flex-none"><span className={`grid h-6 w-6 place-items-center rounded-full text-xs ${i <= idx ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-500"}`}>{i < idx ? <Check className="h-3.5 w-3.5" /> : i + 1}</span>{i < STEPS.length - 1 && <span className={`mx-1 h-0.5 flex-1 ${i < idx ? "bg-slate-900" : "bg-slate-200"}`} />}</li>))}</ol>
                   )}
                   {!dead && <div className="mt-1 flex justify-between text-[10px] text-slate-500 sm:text-xs"><span>Received</span><span>Approved</span><span>Packed</span><span>Out for delivery</span><span>Delivered</span></div>}
                   {o.payment.status === "pending" && o.payment.authUrl && !dead && <div className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Payment not completed. We are holding your items until {dateTime(o.reservedUntil)}. <a className="font-semibold underline" href={o.payment.authUrl}>Pay now</a></div>}
-                  {o.status === "out_for_delivery" && o.rider?.location && <div className="mt-2 text-sm">Rider last seen {dateTime(o.rider.location.at)} · <a className="font-medium text-teal-700 underline" target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${o.rider.location.lat}&mlon=${o.rider.location.lng}#map=16/${o.rider.location.lat}/${o.rider.location.lng}`}>View on map</a></div>}
-                  {o.status === "out_for_delivery" && o.rider?.phone && <div className="mt-1 text-sm">Call rider: <a className="text-teal-700 underline" href={`tel:${o.rider.phone}`}>{o.rider.phone}</a></div>}
-                  {o.status === "out_for_delivery" && o.rider?.trackingUrl && <div className="mt-1 text-sm"><a className="text-teal-700 underline" target="_blank" rel="noreferrer" href={o.rider.trackingUrl}>Courier tracking</a></div>}
-                  {o.status === "out_for_delivery" && <div className="mt-3 rounded-lg bg-violet-50 p-3 text-sm text-violet-900">With {o.rider?.name}. Give the rider this code on arrival: <b className="font-mono text-lg">{o.deliveryCode}</b></div>}
+                  {o.status === "out_for_delivery" && o.rider?.location && <div className="mt-2 text-sm">Rider last seen {dateTime(o.rider.location.at)} · <a className="font-medium text-brand-700 underline" target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${o.rider.location.lat}&mlon=${o.rider.location.lng}#map=16/${o.rider.location.lat}/${o.rider.location.lng}`}>View on map</a></div>}
+                  {o.status === "out_for_delivery" && o.rider?.phone && <div className="mt-1 text-sm">Call rider: <a className="text-brand-700 underline" href={`tel:${o.rider.phone}`}>{o.rider.phone}</a></div>}
+                  {o.status === "out_for_delivery" && o.rider?.trackingUrl && <div className="mt-1 text-sm"><a className="text-brand-700 underline" target="_blank" rel="noreferrer" href={o.rider.trackingUrl}>Courier tracking</a></div>}
+                  {o.status === "out_for_delivery" && <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-900">With {o.rider?.name}. Give the rider this code on arrival: <b className="font-mono text-lg">{o.deliveryCode}</b></div>}
                   {o.messages?.map((m: any, i: number) => <p key={i} className="mt-2 text-sm"><b>{m.from === "pharmacist" ? "Pharmacist" : "You"}:</b> {m.text}</p>)}
                   {!dead && o.status !== "delivered" && (
                     <div className="mt-3 flex gap-2"><Input placeholder="Message the pharmacist" value={msg[o._id] || ""} onChange={(e) => setMsg({ ...msg, [o._id]: e.target.value })} /><Button variant="outline" disabled={!msg[o._id]} onClick={() => send(o)}>Send</Button>{["received", "pending_review", "approved"].includes(o.status) && <Button variant="ghost" onClick={() => cancel(o)}>Cancel</Button>}</div>
