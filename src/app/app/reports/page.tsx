@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
 import { downloadExport } from "@/lib/download";
 import { dateFmt, dateTime, money } from "@/lib/api";
-import { Button, Card, ErrorNote, Input, PageHeader, Select, Spinner } from "@/components/ui";
+import { Button, Card, ErrorNote, Input, PageHeader, Select, Spinner, Tabs } from "@/components/ui";
 
 // [key, name, uses the date range, what it answers]
 type Rep = [string, string, boolean, string];
@@ -46,6 +46,7 @@ export default function Reports() {
   const [rep, setRep] = useState(ALL[0][0]); const [branch, setBranch] = useState("all");
   const [from, setFrom] = useState(day(30)); const [to, setTo] = useState(day(0));
   const meta = ALL.find((r) => r[0] === rep)!;
+  const group = GROUPS.find(([, l]) => l.includes(meta))![0];
   const sep = rep.includes("?") ? "&" : "?";
   const qs = `${sep}branch=${branch}&from=${from}&to=${to}`;
   const { data, loading, error } = useLoad<any[]>(() => call(`/reports/${rep}${qs}`, { branch: null }), [rep, branch, from, to]);
@@ -84,20 +85,16 @@ export default function Reports() {
     <div>
       <PageHeader title="Reports" subtitle="For all branches or one. Download for Excel, or print and save as PDF."
         actions={<><Button variant="outline" onClick={() => exportAs("xlsx")}><Download className="h-4 w-4" />Excel</Button><Button variant="outline" onClick={() => exportAs("csv")}>CSV</Button><Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</Button></>} />
-      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-        <nav className="no-print hidden lg:block" aria-label="Reports">
-          {GROUPS.map(([g, list]) => (
-            <div key={g} className="mb-5">
-              <div className="mb-1 px-3 text-xs font-medium uppercase tracking-wide text-slate-500">{g}</div>
-              {list.map(([k, name]) => <button key={k} onClick={() => setRep(k)} className={`block w-full rounded-md px-3 py-1.5 text-left text-sm ${rep === k ? "bg-white font-medium text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"}`}>{name}</button>)}
-            </div>
-          ))}
-        </nav>
-
+      <div>
         <div className="min-w-0 space-y-4">
-          <div className="lg:hidden"><Select label="Report" value={rep} onChange={(e) => setRep(e.target.value)}>{GROUPS.map(([g, list]) => <optgroup key={g} label={g}>{list.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</optgroup>)}</Select></div>
+          <div className="no-print">
+            <Tabs value={group} onChange={(g) => setRep(GROUPS.find(([n]) => n === g)![1][0][0])} items={GROUPS.map(([g]) => [g, g] as [string, string])} />
+            <div className="-mt-1 flex flex-wrap gap-2">
+              {GROUPS.find(([n]) => n === group)![1].map(([k, name]) => <button key={k} onClick={() => setRep(k)} className={`rounded-full border px-3 py-1 text-sm ${rep === k ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"}`}>{name}</button>)}
+            </div>
+          </div>
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">{GROUPS.find(([, l]) => l.includes(meta))![0]}: {meta[1].toLowerCase()}</h2>
+            <h2 className="text-lg font-semibold text-slate-900">{group}: {meta[1].toLowerCase()}</h2>
             <p className="text-sm text-slate-500">{meta[3]}</p>
           </div>
 
