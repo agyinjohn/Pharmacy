@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
-import { Check } from "lucide-react";
+import { BellRing, Check } from "lucide-react";
 import { api, dateTime, money } from "@/lib/api";
 import { useShopAuth } from "@/lib/shop";
 import { useLoad } from "@/lib/useLoad";
@@ -15,6 +15,9 @@ export default function MyOrders({ params }: { params: Promise<{ slug: string }>
   const auth = useShopAuth(slug);
   const shop = useLoad(() => api(`/portal/${slug}`), [slug]);
   const orders = useLoad(() => auth.call("/portal/orders/mine"), [auth.token], !!auth.token);
+  const reminders = useLoad<any[]>(() => auth.call("/portal/me/reminders"), [auth.token], !!auth.token);
+  const [times, setTimes] = useState<Record<string, string>>({});
+  const changeReminder = async (id: string, body: any) => { setErr(null); try { await auth.call(`/portal/me/reminders/${id}`, { method: "PATCH", body }); reminders.reload(); } catch (e: any) { setErr(e.message); } };
   const [msg, setMsg] = useState<Record<string, string>>({}); const [err, setErr] = useState<string | null>(null);
 
   // Back from the payment page: confirm the payment with the server.
@@ -39,6 +42,30 @@ export default function MyOrders({ params }: { params: Promise<{ slug: string }>
         {!auth.ready ? <Spinner /> : !auth.token ? <p className="text-slate-600">Please <Link href={`/shop/${slug}`} className="text-teal-700 underline">sign in</Link> from the store page to see your orders.</p> : (
           <>
             <ErrorNote error={err || orders.error} />
+            {(reminders.data || []).length > 0 && (
+              <Card className="mb-6 p-5">
+                <h2 className="flex items-center gap-2 text-lg font-semibold"><BellRing className="h-5 w-5 text-teal-700" />My medication reminders</h2>
+                <p className="text-sm text-slate-500">We send a text at these times. Pause or stop them any time.</p>
+                <div className="mt-3 divide-y divide-slate-100">
+                  {(reminders.data || []).map((r: any) => (
+                    <div key={r._id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+                      <div>
+                        <div className="font-medium">{r.medicine}{r.dose && <span className="font-normal text-slate-500"> · {r.dose}</span>}</div>
+                        {times[r._id] !== undefined
+                          ? <div className="mt-1 flex gap-2"><input aria-label="Reminder times" className="w-36 rounded border border-slate-300 px-2 py-1" value={times[r._id]} onChange={(e) => setTimes({ ...times, [r._id]: e.target.value })} /><Button size="sm" onClick={async () => { await changeReminder(r._id, { times: times[r._id].split(/[ ,;]+/).filter(Boolean).map((t) => (/^\d:\d\d$/.test(t) ? `0${t}` : t)) }); const n = { ...times }; delete n[r._id]; setTimes(n); }}>Save</Button></div>
+                          : <div className="text-slate-500">{r.times.join(", ")} every day{r.endDate ? ` until ${new Date(r.endDate).toLocaleDateString("en-GB")}` : ""}</div>}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {r.paused ? <Badge tone="amber">Paused</Badge> : <Badge tone="green">On</Badge>}
+                        <Button size="sm" variant="ghost" onClick={() => setTimes({ ...times, [r._id]: r.times.join(", ") })}>Change times</Button>
+                        <Button size="sm" variant="ghost" onClick={() => changeReminder(r._id, { paused: !r.paused })}>{r.paused ? "Resume" : "Pause"}</Button>
+                        <Button size="sm" variant="ghost" onClick={() => confirm(`Stop reminders for ${r.medicine}?`) && changeReminder(r._id, { stop: true })}>Stop</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
             {orders.loading && !orders.data ? <Spinner /> : (orders.data || []).map((o: any) => {
               const idx = STEPS.indexOf(o.status === "pending_review" ? "received" : o.status);
               const dead = ["cancelled", "rejected", "failed"].includes(o.status);

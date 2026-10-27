@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
 import { dateFmt, dateTime, money } from "@/lib/api";
 import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Spinner, StatusBadge, Table, Td } from "@/components/ui";
+import { StaffReminders } from "@/components/Reminders";
 
 const blank = { name: "", phone: "", email: "", allergies: "", conditions: "", creditLimit: "", consentComms: true, consentHealth: false };
 
@@ -64,6 +65,7 @@ export default function Customers() {
         {view && <div className="space-y-4 text-sm">
           <div className="grid gap-2 sm:grid-cols-2"><div>Phone: {view.customer.phone}</div><div>Email: {view.customer.email || "-"}</div><div>Allergies: {view.customer.allergies?.join(", ") || "none recorded"}</div><div>Conditions: {view.customer.conditions?.join(", ") || "-"}</div><div>Loyalty points: {view.customer.loyaltyPoints}</div><div>Consent: comms {view.customer.consent?.communications ? "yes" : "no"}, health data {view.customer.consent?.healthData ? "yes" : "no"} ({dateFmt(view.customer.consent?.at)})</div></div>
           {view.customer.creditLimit > 0 && <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">Account balance {money(view.customer.balance)} of {money(view.customer.creditLimit)}<span className="flex gap-2"><Button size="sm" variant="outline" onClick={() => statement(view.customer._id)}>Statement</Button>{can("accountant", "cashier", "branch_manager") && <Button size="sm" onClick={() => payment(view.customer)}>Record payment</Button>}</span></div>}
+          <StaffReminders call={call} customerId={view.customer._id} canEdit={can("pharmacist", "branch_manager")} />
           <div><h3 className="mb-1 font-semibold">Prescription history</h3>{view.prescriptions.map((r: any) => <div key={r._id} className="flex items-center justify-between border-b border-slate-100 py-1.5"><span>{r.rxNo} · {r.items.map((i: any) => i.name).join(", ")}</span><StatusBadge s={r.status} /></div>)}{!view.prescriptions.length && <p className="text-slate-500">None</p>}</div>
         </div>}
       </Modal>

@@ -28,9 +28,11 @@ export default function Prescriptions() {
   };
   const [status, setStatus] = useState("");
   const list = useLoad(() => call(`/prescriptions${status ? `?status=${status}` : ""}`), [status, branch?._id]);
-  const [open, setOpen] = useState<any>(null); const [err, setErr] = useState<string | null>(null);
+  const [open, setOpenRaw] = useState<any>(null);
+  const setOpen = (v: any) => { setOpenRaw(v); setRemind(true); }; const [err, setErr] = useState<string | null>(null);
   const [warn, setWarn] = useState<string[] | null>(null); const [overrideReason, setOverrideReason] = useState("");
   const [labels, setLabels] = useState<any[] | null>(null);
+  const [remind, setRemind] = useState(true); const [madeReminders, setMadeReminders] = useState<any[]>([]);
   const [form, setForm] = useState<any>(null);
   const products = useLoad(() => call("/products?limit=500"), [], !!form);
   const customers = useLoad(() => call("/customers"), [], !!form);
@@ -51,7 +53,7 @@ export default function Prescriptions() {
   const reject = async () => { if (await act("reject", { reason })) { setReason(""); afterAct(); } };
   const addNote = async () => { if (await act("notes", { type: "counselling", text: note })) { setNote(""); afterAct(); } };
   const sight = async () => { if (await act("paper-sighted")) afterAct(); };
-  const dispense = async () => { const r = await act("dispense", {}); if (r) { setLabels(r.labels); afterAct(); } };
+  const dispense = async () => { const r = await act("dispense", { reminders: remind }); if (r) { setLabels(r.labels); setMadeReminders(r.reminders || []); afterAct(); } };
 
   const submit = async () => {
     setErr(null);
@@ -134,7 +136,7 @@ export default function Prescriptions() {
                     <div className="flex flex-1 gap-2"><Input placeholder="Reason for declining" value={reason} onChange={(e) => setReason(e.target.value)} /><Button variant="danger" disabled={!reason.trim()} onClick={reject}>Decline</Button></div>
                   </div>
                 )}
-                {["verified", "partial"].includes(open.status) && <Button onClick={dispense}>Dispense at {branch?.name}</Button>}
+                {["verified", "partial"].includes(open.status) && <div className="flex flex-wrap items-center gap-3"><Button onClick={dispense}>Dispense at {branch?.name}</Button>{open.customer && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={remind} onChange={(e) => setRemind(e.target.checked)} />Set up dose reminders for the patient</label>}</div>}
                 <div className="flex gap-2"><Input placeholder="Add counselling / intervention note" value={note} onChange={(e) => setNote(e.target.value)} /><Button variant="outline" disabled={!note.trim()} onClick={addNote}>Add note</Button></div>
               </div>
             )}
@@ -152,6 +154,7 @@ export default function Prescriptions() {
             </div>
           ))}
         </div>
+        {madeReminders.length > 0 && <div className="no-print mt-4 rounded-lg bg-teal-50 p-3 text-sm text-teal-900"><b>Dose reminders set up:</b> {madeReminders.map((m) => `${m.medicine} at ${m.times.join(", ")}${m.endDate ? ` until ${dateFmt(m.endDate)}` : ""}`).join("; ")}. The patient can pause or stop them in the online store. Change them on the customer record.</div>}
         <Button className="no-print mt-4" onClick={() => window.print()}><Printer className="h-4 w-4" />Print labels</Button>
       </Modal>
 

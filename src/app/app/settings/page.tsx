@@ -60,7 +60,7 @@ function Org({ call, org, refresh }: any) {
   const [err, setErr] = useState<string | null>(null); const [ok, setOk] = useState(false);
   const save = async () => {
     setErr(null); setOk(false);
-    try { await call("/org", { method: "PATCH", branch: null, body: { name: f.name, dpcRegistration: f.dpcRegistration, settings: { purchasing: f.purchasing, codEnabled: f.codEnabled, requireTwoStep: f.requireTwoStep, retentionYears: Number(f.retentionYears), reservationMinutes: Number(f.reservationMinutes), loyalty: { enabled: f.loyalty?.enabled !== false, pointsPerCedi: Number(f.loyalty?.pointsPerCedi ?? 0.1), pointValue: Number(f.loyalty?.pointValue ?? 0.1), minRedeemPoints: Number(f.loyalty?.minRedeemPoints ?? 50) } } } }); setOk(true); refresh(); }
+    try { await call("/org", { method: "PATCH", branch: null, body: { name: f.name, dpcRegistration: f.dpcRegistration, settings: { purchasing: f.purchasing, codEnabled: f.codEnabled, requireTwoStep: f.requireTwoStep, retentionYears: Number(f.retentionYears), reservationMinutes: Number(f.reservationMinutes), reminders: { enabled: f.reminders?.enabled !== false, refillDaysBefore: Number(f.reminders?.refillDaysBefore ?? 3), timezone: f.reminders?.timezone || "Africa/Accra" }, loyalty: { enabled: f.loyalty?.enabled !== false, pointsPerCedi: Number(f.loyalty?.pointsPerCedi ?? 0.1), pointValue: Number(f.loyalty?.pointValue ?? 0.1), minRedeemPoints: Number(f.loyalty?.minRedeemPoints ?? 50) } } } }); setOk(true); refresh(); }
     catch (e: any) { setErr(e.message); }
   };
   return (
@@ -76,6 +76,11 @@ function Org({ call, org, refresh }: any) {
           <Input label="GH₵ value of a point" type="number" step="0.01" value={f.loyalty?.pointValue ?? 0.1} onChange={(e) => setF({ ...f, loyalty: { ...f.loyalty, pointValue: e.target.value } })} />
           <Input label="Minimum points to redeem" type="number" value={f.loyalty?.minRedeemPoints ?? 50} onChange={(e) => setF({ ...f, loyalty: { ...f.loyalty, minRedeemPoints: e.target.value } })} />
         </div>
+      </div>
+      <div className="rounded-lg border border-slate-200 p-3">
+        <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={f.reminders?.enabled !== false} onChange={(e) => setF({ ...f, reminders: { ...f.reminders, enabled: e.target.checked } })} />Medication reminders when dispensing</label>
+        <div className="mt-2 max-w-xs"><Input label="Refill reminder, days before supply ends" type="number" value={f.reminders?.refillDaysBefore ?? 3} onChange={(e) => setF({ ...f, reminders: { ...f.reminders, refillDaysBefore: e.target.value } })} /></div>
+        <p className="mt-1 text-xs text-slate-500">Sent only to patients who agreed to messages. The medicine name is included only if they also agreed to us holding health data.</p>
       </div>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!f.codEnabled} onChange={(e) => setF({ ...f, codEnabled: e.target.checked })} />Allow pay on delivery</label>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!f.requireTwoStep} onChange={(e) => setF({ ...f, requireTwoStep: e.target.checked })} />Require two-step sign-in for owners, managers and pharmacists</label>
