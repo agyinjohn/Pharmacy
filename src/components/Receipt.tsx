@@ -1,5 +1,7 @@
 import { dateTime } from "@/lib/api";
 
+const PAY: Record<string, string> = { cash: "Cash", momo: "Mobile money", card: "Card", credit: "On account", loyalty: "Points" };
+
 export function Receipt({ sale, branch }: { sale: any; branch: any }) {
   return (
     <div className="receipt mx-auto rounded border border-dashed border-slate-300 p-3">
@@ -15,7 +17,7 @@ export function Receipt({ sale, branch }: { sale: any; branch: any }) {
       {sale.discount > 0 && <div className="flex justify-between"><span>Discount</span><span>-{sale.discount.toFixed(2)}</span></div>}
       <div className="flex justify-between"><span>Tax</span><span>{sale.tax.toFixed(2)}</span></div>
       <div className="flex justify-between text-sm font-bold"><span>TOTAL GH₵</span><span>{sale.total.toFixed(2)}</span></div>
-      {sale.payments.map((p: any, k: number) => <div key={k} className="flex justify-between"><span>{p.method}</span><span>{p.amount.toFixed(2)}</span></div>)}
+      {sale.payments.map((p: any, k: number) => <div key={k} className="flex justify-between"><span>{PAY[p.method] || p.method}</span><span>{p.amount.toFixed(2)}</span></div>)}
       {sale.changeGiven > 0 && <div className="flex justify-between"><span>Change</span><span>{sale.changeGiven.toFixed(2)}</span></div>}
       <div className="mt-2 text-center">Thank you</div>
     </div>
