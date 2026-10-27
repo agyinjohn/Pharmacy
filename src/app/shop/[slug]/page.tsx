@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
-import { Minus, Plus, Search, ShoppingBag, Trash2, Upload, User, FileText } from "lucide-react";
+import { Clock, FileText, MapPin, Minus, Plus, Search, ShieldCheck, ShoppingBag, Smartphone, Trash2, Truck, Upload, User } from "lucide-react";
 import { api, money, store } from "@/lib/api";
 import { useShopAuth } from "@/lib/shop";
 import { useLoad } from "@/lib/useLoad";
@@ -10,6 +10,8 @@ import { ShopFooter, ShopHeader } from "@/components/ShopChrome";
 import ProductImage from "@/components/ProductImage";
 
 type Item = { product: any; qty: number };
+// Brand names often already carry the strength ("Ibuprofen 400"); avoid printing it twice.
+const shortName = (p: any) => (p.strength && !p.brand.includes(p.strength.replace(/[^0-9/.]/g, "")) ? `${p.brand} ${p.strength}` : p.brand);
 
 export default function Shop({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -39,51 +41,91 @@ export default function Shop({ params }: { params: Promise<{ slug: string }> }) 
   const showAlt = async (p: any) => setAlt({ p, list: await api(`/portal/${slug}/products/${p._id}/alternatives?branch=${branchId}`) });
   const count = cart.reduce((s, i) => s + i.qty, 0);
 
+  const inCart = (id: string) => cart.find((i) => i.product._id === id)?.qty || 0;
+  const bump = (p: any, d: number) => setCart((c) => c.flatMap((x) => (x.product._id !== p._id ? [x] : x.qty + d <= 0 ? [] : [{ ...x, qty: Math.min(p.stock || 99, x.qty + d) }])));
+  const cartTotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
+  const symptoms: string[] = cats.data?.symptoms || [];
+  const categories: string[] = (cats.data?.categories || []).filter((c: string) => !symptoms.includes(c));
+  const chip = (c: string, label = c) => <button key={c} onClick={() => setCat(c)} className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm ${cat === c ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"}`}>{label}</button>;
+  const zones = branch?.deliveryZones || [];
+
   if (shop.error) return <div className="grid min-h-screen place-items-center p-6 text-center"><div><h1 className="text-xl font-semibold">Pharmacy not found</h1><p className="mt-2 text-slate-600">Check the link, or <Link href="/" className="text-brand-700 underline">visit PharmaOne</Link>.</p></div></div>;
   if (!shop.data) return <Spinner />;
 
   return (
-    <div className="min-h-screen bg-[#fafafa]">
+    <div className="min-h-screen bg-[#fafafa] pb-20 sm:pb-0">
       <ShopHeader shop={shop.data} slug={slug} right={<>
-        {auth.customer ? <><Link href={`/shop/${slug}/orders`} className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">My orders</Link><button onClick={auth.logout} className="hidden text-sm text-slate-500 sm:block">Sign out</button></> : <Button size="sm" variant="outline" onClick={() => setLoginOpen(true)}><User className="h-4 w-4" />Sign in</Button>}
-        <Button size="sm" onClick={() => setCartOpen(true)}><ShoppingBag className="h-4 w-4" />Cart{count > 0 && <span className="rounded-full bg-white/25 px-1.5 text-xs">{count}</span>}</Button>
+        {auth.customer ? <><Link href={`/shop/${slug}/orders`} className="rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100">My orders</Link><button onClick={auth.logout} className="hidden text-sm text-slate-500 hover:text-slate-800 sm:block">Sign out</button></>
+          : <button onClick={() => setLoginOpen(true)} className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"><User className="h-4 w-4" /><span className="hidden sm:inline">Sign in</span></button>}
+        <Button size="sm" onClick={() => setCartOpen(true)} aria-label={`Cart, ${count} items`}><ShoppingBag className="h-4 w-4" /><span className="hidden sm:inline">Cart</span>{count > 0 && <span className="rounded-full bg-white/25 px-1.5 text-xs tabular-nums">{count}</span>}</Button>
       </>} />
 
       <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-8">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Medicines and health products, delivered</h1>
-          <p className="mt-1 text-slate-600">Search, order and pay online. Prescription items are checked by a registered pharmacist.</p>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <div className="relative sm:col-span-2"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search brand, generic name or symptom (headache, malaria...)" className="w-full rounded-md border border-slate-300 py-2.5 pl-10 pr-3 text-slate-900 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-900/10" aria-label="Search medicines" /></div>
-            <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="rounded-md border border-slate-300 bg-white px-3 py-2.5 text-slate-900" aria-label="Choose branch">{shop.data.branches.map((b: any) => <option key={b._id} value={b._id}>{b.name}{b.online ? "" : " (online ordering unavailable)"}</option>)}</select>
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-8 sm:py-10 lg:grid-cols-[1fr_340px]">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Your pharmacy, delivered.</h1>
+            <p className="mt-2 max-w-xl text-slate-600">Order medicines and health products from {shop.data.name}. Pay by mobile money, and a registered pharmacist checks every prescription.</p>
+            <div className="relative mt-6 max-w-xl"><Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search medicines or symptoms, e.g. malaria" className="w-full rounded-lg border border-slate-300 bg-white py-3 pl-12 pr-4 text-slate-900 shadow-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-900/10" aria-label="Search medicines" /></div>
+            <ul className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
+              <li className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-brand-700" />Licensed pharmacy</li>
+              <li className="flex items-center gap-2"><Smartphone className="h-4 w-4 text-brand-700" />Mobile money{shop.data.codEnabled ? " or pay on delivery" : ""}</li>
+              <li className="flex items-center gap-2"><Truck className="h-4 w-4 text-brand-700" />Delivery or pick up in store</li>
+            </ul>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+            <label className="text-xs font-medium uppercase tracking-wide text-slate-500" htmlFor="branch">Ordering from</label>
+            <select id="branch" value={branchId} onChange={(e) => setBranchId(e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900">{shop.data.branches.map((b: any) => <option key={b._id} value={b._id}>{b.name}{b.online ? "" : " (not taking online orders)"}</option>)}</select>
+            {branch && <div className="mt-3 space-y-1.5 text-sm text-slate-600">
+              <div className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />{branch.address}</div>
+              {branch.openingHours && <div className="flex gap-2"><Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />{branch.openingHours}</div>}
+              {zones.length > 0 && <div className="flex gap-2"><Truck className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />Delivery from {money(Math.min(...zones.map((z: any) => z.fee)))}, about {Math.min(...zones.map((z: any) => z.etaMins))} min</div>}
+            </div>}
+            {branch && !branch.online && <p className="mt-3 rounded-md bg-amber-50 p-2 text-sm text-amber-900">This branch isn't taking online orders right now. Choose another branch.</p>}
           </div>
         </div>
       </section>
 
       <main className="mx-auto max-w-6xl px-4 py-6">
-        {branch && !branch.online && <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">This branch is not taking online orders right now. Please choose another branch.</div>}
-        <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
-          {["all", ...(cats.data?.symptoms || []), ...(cats.data?.categories || []).filter((c: string) => !(cats.data?.symptoms || []).includes(c))].map((c: string) => (
-            <button key={c} onClick={() => setCat(c)} className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm ${cat === c ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"}`}>{c === "all" ? "All" : c}</button>
-          ))}
-        </div>
+        {symptoms.length > 0 && <div className="mb-3"><div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Shop by need</div><div className="flex gap-2 overflow-x-auto pb-1">{symptoms.map((c) => chip(c))}</div></div>}
+        <div className="mb-5"><div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Categories</div><div className="flex gap-2 overflow-x-auto pb-1">{chip("all", "Everything")}{categories.map((c) => chip(c))}</div></div>
+        {products.data && <div className="mb-3 text-sm text-slate-500">{products.data.length} product{products.data.length === 1 ? "" : "s"}{cat !== "all" ? ` in ${cat}` : ""}{q ? ` matching “${q}”` : ""}</div>}
         {products.loading && !products.data ? <Spinner /> : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {(products.data || []).map((p: any) => (
-              <Card key={p._id} className="flex flex-col overflow-hidden">
-                <ProductImage product={p} className="aspect-[4/3] w-full border-b border-slate-100" />
-                <div className="flex flex-1 flex-col p-4">
-                <div className="flex items-start justify-between gap-2"><div><h3 className="font-medium text-slate-900">{p.brand} {p.strength}</h3><p className="text-sm text-slate-500">{p.generic} · {p.form} · {p.packSize}</p></div><div className="whitespace-nowrap text-right font-semibold tabular-nums">{money(p.price)}</div></div>
-                <div className="mt-2 flex flex-wrap gap-1.5">{p.promo && <Badge tone="violet">{p.promo}</Badge>}{p.requiresRx ? <Badge tone="amber"><FileText className="mr-1 h-3 w-3" />Prescription needed</Badge> : <Badge tone="green">No prescription</Badge>}<Badge tone={p.inStock ? (p.stock < 10 ? "amber" : "green") : "red"}>{p.inStock ? (p.stock < 10 ? `Only ${p.stock} left` : "In stock") : "Out of stock here"}</Badge></div>
-                <div className="mt-auto pt-4">{p.inStock ? <Button className="w-full" variant="outline" onClick={() => { add(p); }} disabled={!branch?.online}><Plus className="h-4 w-4" />Add to cart</Button> : <Button className="w-full" variant="outline" onClick={() => showAlt(p)}>See substitutes</Button>}</div>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+            {(products.data || []).map((p: any) => {
+              const n = inCart(p._id);
+              return (
+                <div key={p._id} className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition hover:border-slate-300 hover:shadow-sm">
+                  <div className="relative"><ProductImage product={p} className="aspect-[4/3] w-full" />{p.promo && <span className="absolute left-2 top-2 rounded-md bg-white/95 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm">{p.promo}</span>}</div>
+                  <div className="flex flex-1 flex-col border-t border-slate-100 p-3 sm:p-4">
+                    <h3 className="text-sm font-medium leading-snug text-slate-900 sm:text-base">{shortName(p)}</h3>
+                    <p className="mt-0.5 text-xs text-slate-500">{[p.generic, p.packSize].filter(Boolean).join(" · ")}</p>
+                    <div className="mt-2 space-y-0.5 text-xs">
+                      {p.requiresRx && <div className="flex items-center gap-1 text-amber-700"><FileText className="h-3.5 w-3.5" />Prescription needed</div>}
+                      {!p.inStock ? <div className="text-red-700">Out of stock here</div> : p.stock < 10 ? <div className="text-amber-700">Only {p.stock} left</div> : null}
+                    </div>
+                    <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
+                      <span className="whitespace-nowrap font-semibold tabular-nums text-slate-900">{money(p.price)}</span>
+                      {!p.inStock ? <button onClick={() => showAlt(p)} className="text-xs font-medium text-slate-700 underline underline-offset-2">Alternatives</button>
+                        : n > 0 ? <div className="flex items-center rounded-md border border-slate-300"><button aria-label="One less" onClick={() => bump(p, -1)} className="p-1.5 text-slate-600 hover:bg-slate-50"><Minus className="h-3.5 w-3.5" /></button><span className="w-6 text-center text-sm tabular-nums">{n}</span><button aria-label="One more" onClick={() => bump(p, 1)} disabled={n >= p.stock} className="p-1.5 text-slate-600 hover:bg-slate-50 disabled:opacity-40"><Plus className="h-3.5 w-3.5" /></button></div>
+                        : <Button size="sm" onClick={() => add(p)} disabled={!branch?.online}><Plus className="h-3.5 w-3.5" />Add</Button>}
+                    </div>
+                  </div>
                 </div>
-              </Card>
-            ))}
-            {products.data && !products.data.length && <p className="col-span-full py-12 text-center text-slate-500">No medicines found. Try another search.</p>}
+              );
+            })}
+            {products.data && !products.data.length && <p className="col-span-full py-12 text-center text-slate-500">Nothing found. Try another name, or a symptom like “cough”.</p>}
           </div>
         )}
+
+        <section className="mt-12 grid gap-4 sm:grid-cols-3">
+          {[[Search, "1. Find your medicines", "Search by name or symptom, or add the medicines on your prescription."], [FileText, "2. Upload your prescription", "Take a photo of it at checkout. A pharmacist checks it before anything is packed."], [Truck, "3. Pay and receive", "Pay by mobile money, then track your rider or pick up in store."]].map(([Icon, t, d]: any) => (
+            <div key={t} className="rounded-xl border border-slate-200 bg-white p-5"><Icon className="h-5 w-5 text-brand-700" /><div className="mt-3 font-medium text-slate-900">{t}</div><p className="mt-1 text-sm text-slate-600">{d}</p></div>
+          ))}
+        </section>
       </main>
       <ShopFooter shop={shop.data} branch={branch} />
+
+      {count > 0 && <button onClick={() => setCartOpen(true)} className="fixed inset-x-3 bottom-3 z-30 flex items-center justify-between rounded-xl bg-brand-800 px-4 py-3 text-white shadow-lg sm:hidden"><span className="flex items-center gap-2 text-sm font-medium"><ShoppingBag className="h-4 w-4" />View cart · {count} item{count === 1 ? "" : "s"}</span><span className="font-semibold tabular-nums">{money(cartTotal)}</span></button>}
 
       <Cart open={cartOpen} onClose={() => setCartOpen(false)} cart={cart} setCart={setCart} branch={branch} shop={shop.data} slug={slug} auth={auth} needLogin={() => { setCartOpen(false); setLoginOpen(true); }} onPlaced={(o: any) => { setPlaced(o); setCart([]); setCartOpen(false); }} />
       <Login open={loginOpen} onClose={() => setLoginOpen(false)} auth={auth} />

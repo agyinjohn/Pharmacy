@@ -7,11 +7,11 @@ export function ShopHeader({ shop, slug, right }: { shop: any; slug: string; rig
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
-        <Link href={`/shop/${slug}`} className="flex items-center gap-2 font-semibold tracking-tight text-slate-900">
-          <span className="grid h-7 w-7 place-items-center rounded-md bg-brand-800 text-white"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg></span>
-          {shop?.name || "Pharmacy"}
+        <Link href={`/shop/${slug}`} className="flex min-w-0 items-center gap-2 font-semibold tracking-tight text-slate-900">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-brand-800 text-white"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg></span>
+          <span className="truncate">{shop?.name || "Pharmacy"}</span>
         </Link>
-        <div className="flex items-center gap-2">{right}</div>
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">{right}</div>
       </div>
     </header>
   );
