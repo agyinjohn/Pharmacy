@@ -45,3 +45,15 @@ Navigation adapts to the signed-in role (owner, branch manager, pharmacist, tech
 5. `cashier@demo.com`: open a shift, sell items, print receipt.
 
 Payments and SMS are simulated in the demo (see the API README).
+
+## Offline till
+
+`/app/pos` keeps working without internet: it caches a catalogue snapshot and a service worker (`public/sw.js`) in the browser, queues
+sales in IndexedDB (`src/lib/offline.ts`), and syncs them when the connection returns (a banner shows what is waiting). Only
+non-prescription items can be sold offline. Stock shortfalls found on sync are accepted and flagged on the **Sales** page.
+Visit the till once while online so the catalogue and app shell are cached.
+
+## Deploy
+
+`docker build --build-arg NEXT_PUBLIC_API_URL=https://api.example.com/api .` or deploy to Vercel (set `NEXT_PUBLIC_API_URL`).
+CI (`.github/workflows/ci.yml`) type-checks and builds on every PR.

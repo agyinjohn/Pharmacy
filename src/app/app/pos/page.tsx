@@ -1,9 +1,11 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { WifiOff, RefreshCw } from "lucide-react";
 import { Minus, Plus, Printer, Search, Trash2, PauseCircle, PlayCircle, ScanLine } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
-import { dateFmt, dateTime, money } from "@/lib/api";
+import { ApiError, dateFmt, dateTime, money } from "@/lib/api";
+import { adjustLocalStock, listQueue, loadCatalog, newClientId, queueSale, removeQueued, saveCatalog, type QueuedSale } from "@/lib/offline";
 import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select } from "@/components/ui";
 import { Receipt } from "@/components/Receipt";
 
@@ -25,6 +27,53 @@ export default function POS() {
   const [float, setFloat] = useState("0"); const [counted, setCounted] = useState("");
   const [heldOpen, setHeldOpen] = useState(false);
   const barcodeRef = useRef<HTMLInputElement>(null);
+  const [online, setOnline] = useState(true);
+  const [queue, setQueue] = useState<QueuedSale[]>([]);
+  const syncingRef = useRef(false);
+  const [syncing, setSyncing] = useState(false); const [queueOpen, setQueueOpen] = useState(false);
+  const offline = !online;
+
+  const refreshQueue = useCallback(async () => { if (branch) setQueue(await listQueue(branch._id).catch(() => [])); }, [branch]);
+
+  // Keep a local copy of the catalogue so the till still works without internet.
+  const snapshot = useCallback(async () => {
+    if (!branch) return;
+    try { const c = await call("/pos/catalog"); await saveCatalog(branch._id, c.at, c.products); } catch {}
+  }, [branch, call]);
+
+  const syncNow = useCallback(async () => {
+    if (!branch || syncingRef.current) return;
+    const pending = (await listQueue(branch._id)).filter((q) => q.status === "pending");
+    if (!pending.length) return;
+    syncingRef.current = true; setSyncing(true);
+    try {
+      const r = await call("/sales/sync", { body: { sales: pending.map(({ clientId, createdAt, items, payments, discount, customer }) => ({ clientId, createdAt, items, payments, discount, customer })) } });
+      for (const res of r.results) {
+        if (res.ok) await removeQueued(res.clientId);
+        else { const q = pending.find((x) => x.clientId === res.clientId)!; await queueSale({ ...q, status: "rejected", error: res.error }); }
+      }
+      setOnline(true); snapshot();
+    } catch (e: any) { if (e instanceof ApiError && e.status === 0) setOnline(false); }
+    finally { syncingRef.current = false; setSyncing(false); refreshQueue(); }
+  }, [branch, call, snapshot, refreshQueue]);
+
+  useEffect(() => {
+    setOnline(navigator.onLine);
+    const on = () => { setOnline(true); syncNow(); }; const off = () => setOnline(false);
+    window.addEventListener("online", on); window.addEventListener("offline", off);
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branch?._id]);
+  useEffect(() => { if (!branch) return; refreshQueue(); if (navigator.onLine) { snapshot(); syncNow(); } const t = setInterval(() => { if (navigator.onLine) { snapshot(); syncNow(); } }, 120000); return () => clearInterval(t); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branch?._id]);
+
+  const localSearch = async (text: string, barcode: boolean) => {
+    const c = branch ? await loadCatalog(branch._id) : undefined;
+    if (!c) return [];
+    const t = text.toLowerCase();
+    return c.products.filter((p) => (barcode ? p.barcode === text : `${p.brand} ${p.generic || ""} ${p.barcode || ""}`.toLowerCase().includes(t))).slice(0, 20);
+  };
 
   const shift = useLoad(() => call("/shifts/current"), [branch?._id], !!branch);
   const held = useLoad(() => call("/sales/held"), [branch?._id, heldOpen], !!branch);
@@ -34,8 +83,12 @@ export default function POS() {
 
   const search = useCallback(async (text: string, barcode = false) => {
     if (!text.trim()) { setResults([]); return; }
-    try { setResults(await call(`/pos/lookup?${barcode ? "barcode" : "q"}=${encodeURIComponent(text)}`)); } catch (e: any) { setError(e.message); }
-  }, [call]);
+    try {
+      if (!navigator.onLine) { setResults(await localSearch(text, barcode)); return; }
+      setResults(await call(`/pos/lookup?${barcode ? "barcode" : "q"}=${encodeURIComponent(text)}`));
+    } catch (e: any) { if (e instanceof ApiError && e.status === 0) { setOnline(false); setResults(await localSearch(text, barcode)); } else setError(e.message); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [call, branch?._id]);
   useEffect(() => { const t = setTimeout(() => search(q), 200); return () => clearTimeout(t); }, [q, search]);
   useEffect(() => { if (!custQ) { setCustList([]); return; } const t = setTimeout(() => call(`/customers?q=${encodeURIComponent(custQ)}`).then(setCustList).catch(() => {}), 250); return () => clearTimeout(t); }, [custQ, call]);
 
@@ -50,7 +103,7 @@ export default function POS() {
     const code = input.value.trim();
     input.value = "";
     if (!code) return;
-    try { const r = await call(`/pos/lookup?barcode=${encodeURIComponent(code)}`); if (r[0]) add(r[0]); else setError(`No product with barcode ${code}`); } catch (er: any) { setError(er.message); }
+    try { const r = navigator.onLine ? await call(`/pos/lookup?barcode=${encodeURIComponent(code)}`).catch(async (er) => { if (er instanceof ApiError && er.status === 0) { setOnline(false); return localSearch(code, true); } throw er; }) : await localSearch(code, true); if (r[0]) add(r[0]); else setError(`No product with barcode ${code}${offline ? " (offline catalogue only has non-prescription items)" : ""}`); } catch (er: any) { setError(er.message); }
   };
   const setQty = (id: string, d: number) => setCart((c) => c.map((l) => (l.product._id === id ? { ...l, qty: Math.max(1, Math.min(l.product.stock, l.qty + d)) } : l)));
 
@@ -66,13 +119,34 @@ export default function POS() {
 
   const reset = () => { setCart([]); setDiscount(0); setCustomer(null); setRxId(""); setPays([{ method: "cash", amount: "" }]); setError(null); };
 
+  const sellOffline = async (payments: { method: string; amount: number }[]) => {
+    if (!branch || !user) return;
+    if (payments.some((p) => p.method === "credit")) { setError("Account credit needs a connection. Take cash, mobile money or card."); return; }
+    const clientId = newClientId();
+    const createdAt = new Date().toISOString();
+    const items = cart.map((l) => ({ product: l.product._id, qty: l.qty }));
+    const receipt = {
+      receiptNo: `OFF-${clientId.slice(0, 6).toUpperCase()}`, createdAt, cashier: { name: user.name }, offline: true,
+      items: cart.map((l) => ({ name: `${l.product.brand} ${l.product.strength || ""}`.trim(), qty: l.qty, unitPrice: l.product.price, tax: l.product.price * l.qty * (l.product.taxRate || 0), lineTotal: l.product.price * l.qty })),
+      subtotal, discount: disc, tax, total, payments, changeGiven: change,
+    };
+    await queueSale({ clientId, branch: branch._id, createdAt, items, payments, discount: disc, customer: customer?._id, receipt, status: "pending" });
+    await adjustLocalStock(branch._id, items);
+    setReceipt(receipt); reset(); refreshQueue();
+  };
+
   const pay = async () => {
     setBusy(true); setError(null);
+    const payments = pays.filter((p) => Number(p.amount) > 0).map((p) => ({ method: p.method, amount: Number(p.amount) }));
     try {
-      const payments = pays.filter((p) => Number(p.amount) > 0).map((p) => ({ method: p.method, amount: Number(p.amount) }));
+      if (!navigator.onLine) { await sellOffline(payments); return; }
       const sale = await call("/sales", { body: { items: cart.map((l) => ({ product: l.product._id, qty: l.qty })), customer: customer?._id, discount: disc, payments, prescription: needsRx ? rxId : undefined } });
       setReceipt(sale); reset(); shift.reload();
-    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+    } catch (e: any) {
+      // Connection dropped mid-sale: fall back to offline selling when every item allows it.
+      if (e instanceof ApiError && e.status === 0 && !needsRx) { setOnline(false); await sellOffline(payments); }
+      else setError(e.message);
+    } finally { setBusy(false); }
   };
 
   const hold = async () => { try { await call("/sales/hold", { body: { items: cart.map((l) => ({ product: l.product._id, qty: l.qty })), customer: customer?._id } }); reset(); held.reload(); } catch (e: any) { setError(e.message); } };
@@ -94,6 +168,14 @@ export default function POS() {
             : <Button size="sm" onClick={() => setShiftModal("open")}>Open shift</Button>}
           <Button size="sm" variant="outline" onClick={() => setHeldOpen(true)}><PlayCircle className="h-4 w-4" />Held ({held.data?.length || 0})</Button>
         </>} />
+      {(offline || queue.length > 0) && (
+        <div className={`mb-4 flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm ${offline ? "border-amber-300 bg-amber-50 text-amber-900" : "border-sky-200 bg-sky-50 text-sky-900"}`}>
+          {offline ? <WifiOff className="h-4 w-4" /> : <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />}
+          <span>{offline ? "Offline: you can keep selling non-prescription items. Sales are saved on this device and sent when the connection returns." : "Sales made offline are waiting to sync."} {queue.length > 0 && <b>{queue.filter((q) => q.status === "pending").length} waiting{queue.some((q) => q.status === "rejected") ? `, ${queue.filter((q) => q.status === "rejected").length} need attention` : ""}.</b>}</span>
+          {queue.length > 0 && <Button size="sm" variant="outline" onClick={() => setQueueOpen(true)}>View</Button>}
+          {!offline && <Button size="sm" variant="outline" loading={syncing} onClick={syncNow}>Sync now</Button>}
+        </div>
+      )}
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="space-y-4 lg:col-span-3">
           <Card className="p-4">
@@ -181,6 +263,18 @@ export default function POS() {
         </Card>
       </div>
 
+      <Modal open={queueOpen} onClose={() => setQueueOpen(false)} title="Offline sales on this device" wide>
+        <div className="divide-y divide-slate-100 text-sm">
+          {queue.map((q) => (
+            <div key={q.clientId} className="flex items-center justify-between gap-3 py-2">
+              <div><div className="font-medium">{q.receipt.receiptNo} · {money(q.receipt.total)}</div><div className="text-xs text-slate-500">{dateTime(q.createdAt)} · {q.items.length} item(s)</div>{q.error && <div className="text-xs text-red-700">{q.error}</div>}</div>
+              <div className="flex items-center gap-2"><Badge tone={q.status === "pending" ? "amber" : "red"}>{q.status === "pending" ? "waiting" : "rejected"}</Badge>{q.status === "rejected" && <Button size="sm" variant="outline" onClick={async () => { await removeQueued(q.clientId); refreshQueue(); }}>Dismiss</Button>}</div>
+            </div>
+          ))}
+          {!queue.length && <p className="py-4 text-center text-slate-500">Nothing waiting.</p>}
+        </div>
+        <p className="mt-3 text-xs text-slate-500">Rejected sales were already handed to the customer; ask your manager to record them manually, then dismiss here. Stock shortfalls are accepted and flagged for review.</p>
+      </Modal>
       <Modal open={shiftModal === "open"} onClose={() => setShiftModal(null)} title="Open shift">
         <Input label="Opening cash float (GH₵)" type="number" value={float} onChange={(e) => setFloat(e.target.value)} />
         <Button className="mt-4 w-full" onClick={openShift}>Open shift</Button>

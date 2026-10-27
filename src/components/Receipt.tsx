@@ -6,6 +6,7 @@ export function Receipt({ sale, branch }: { sale: any; branch: any }) {
       <div className="text-center font-bold">{branch.receiptHeader || branch.name}</div>
       <div className="text-center">{branch.address}</div><div className="text-center">{branch.phone}</div>{branch.taxId && <div className="text-center">TIN {branch.taxId}</div>}
       <hr className="my-2 border-dashed" />
+      {sale.offline && <div className="font-bold">** RECORDED OFFLINE - PENDING SYNC **</div>}
       <div>Receipt {sale.receiptNo}</div><div>{dateTime(sale.createdAt)}</div><div>Served by {sale.cashier?.name}</div>
       <hr className="my-2 border-dashed" />
       {sale.items.map((i: any, k: number) => (<div key={k}><div>{i.name}</div><div className="flex justify-between"><span>{i.qty} x {i.unitPrice.toFixed(2)}{i.tax ? ` (tax ${i.tax.toFixed(2)})` : ""}</span><span>{i.lineTotal.toFixed(2)}</span></div></div>))}

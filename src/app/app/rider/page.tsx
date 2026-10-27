@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MapPin, Phone } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
@@ -12,6 +12,17 @@ export default function Rider() {
   const { data, loading, error, reload } = useLoad(() => call("/rider/tasks", { branch: null }), []);
   const [form, setForm] = useState<Record<string, { recipient: string; code: string; reason: string }>>({});
   const [err, setErr] = useState<string | null>(null);
+  // Share this phone's position with the customer while deliveries are in progress (CP-DEL-05).
+  const [sharing, setSharing] = useState(false);
+  useEffect(() => {
+    if (!sharing || !data?.length || !("geolocation" in navigator)) return;
+    const send = () => navigator.geolocation.getCurrentPosition((pos) => {
+      data.forEach((o: any) => call(`/orders/${o._id}/location`, { body: { lat: pos.coords.latitude, lng: pos.coords.longitude }, branch: null }).catch(() => {}));
+    }, () => setSharing(false), { enableHighAccuracy: true, maximumAge: 15000 });
+    send(); const t = setInterval(send, 20000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharing, data]);
   const f = (id: string) => form[id] || { recipient: "", code: "", reason: "" };
   const set = (id: string, k: string, v: string) => setForm({ ...form, [id]: { ...f(id), [k]: v } });
 
@@ -21,6 +32,7 @@ export default function Rider() {
   return (
     <div className="mx-auto max-w-xl">
       <PageHeader title="My deliveries" subtitle="Assigned to you. Ask the customer for their 4-digit code on arrival." />
+      {data && data.length > 0 && <label className="mb-4 flex items-center gap-2 rounded-lg bg-teal-50 p-3 text-sm"><input type="checkbox" checked={sharing} onChange={(e) => setSharing(e.target.checked)} />Share my live location with customers while I deliver</label>}
       <ErrorNote error={error || err} />
       {loading && !data ? <Spinner /> : (data || []).map((o: any) => (
         <Card key={o._id} className="mb-4 p-4">

@@ -13,6 +13,7 @@ const REPORTERS = ["branch_manager", "accountant", "auditor", "pharmacist", "sto
 const NAV: { href: string; label: string; icon: any; roles: string[] | "all" }[] = [
   { href: "/app", label: "Dashboard", icon: LayoutDashboard, roles: REPORTERS },
   { href: "/app/pos", label: "Point of sale", icon: ShoppingCart, roles: ["cashier", "pharmacist", "branch_manager", "technician"] },
+  { href: "/app/sales", label: "Sales", icon: ScrollText, roles: ["cashier", "pharmacist", "branch_manager", "accountant", "auditor"] },
   { href: "/app/prescriptions", label: "Prescriptions", icon: ClipboardCheck, roles: ["pharmacist", "technician", "branch_manager", "cashier"] },
   { href: "/app/orders", label: "Online orders", icon: Globe, roles: ["pharmacist", "technician", "branch_manager", "dispatcher", "accountant"] },
   { href: "/app/rider", label: "My deliveries", icon: Truck, roles: ["dispatcher"] },

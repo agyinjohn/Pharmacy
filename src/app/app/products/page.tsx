@@ -10,7 +10,7 @@ const LEGAL: Record<string, [string, any]> = { otc: ["OTC", "green"], pharmacy_o
 const blank = { brand: "", generic: "", strength: "", form: "", packSize: "", manufacturer: "", barcode: "", category: "General", legalStatus: "otc", controlClass: "standard", fdaRegNo: "", price: "", cost: "", taxRate: "0", reorderLevel: "10", isDrug: true, storage: "ambient" };
 
 export default function Products() {
-  const { call, can, branch } = useAuth();
+  const { call, can, branch, branches } = useAuth();
   const [q, setQ] = useState(""); const [legal, setLegal] = useState("");
   const { data, loading, error, reload } = useLoad(() => call(`/products?limit=500&branch=${branch?._id || ""}&q=${encodeURIComponent(q)}${legal ? `&legalStatus=${legal}` : ""}`), [q, legal, branch?._id]);
   const [edit, setEdit] = useState<any>(null); const [err, setErr] = useState<string | null>(null);
@@ -21,7 +21,7 @@ export default function Products() {
   const save = async () => {
     setErr(null);
     try {
-      const body = { ...edit, price: Number(edit.price), cost: Number(edit.cost || 0), taxRate: Number(edit.taxRate || 0), reorderLevel: Number(edit.reorderLevel || 0) };
+      const body = { ...edit, branchPrices: (edit.branchPrices || []).filter((x: any) => x.price !== "" && x.price !== null && x.price !== undefined).map((x: any) => ({ branch: x.branch, price: Number(x.price) })), branchReorder: (edit.branchReorder || []).filter((x: any) => x.level !== "" && x.level !== null && x.level !== undefined).map((x: any) => ({ branch: x.branch, level: Number(x.level) })), price: Number(edit.price), cost: Number(edit.cost || 0), taxRate: Number(edit.taxRate || 0), reorderLevel: Number(edit.reorderLevel || 0) };
       if (edit._id) await call(`/products/${edit._id}`, { method: "PATCH", body }); else await call("/products", { body });
       setEdit(null); reload();
     } catch (e: any) { setErr(e.message); }
@@ -76,6 +76,16 @@ export default function Products() {
             <Select label="Legal status" value={edit.legalStatus} onChange={(e) => setEdit({ ...edit, legalStatus: e.target.value })}>{Object.entries(LEGAL).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}</Select>
             {edit.legalStatus === "controlled" && <Select label="Control class" value={edit.controlClass} onChange={(e) => setEdit({ ...edit, controlClass: e.target.value })}><option value="standard">Standard</option><option value="strict">Strictest (no refills)</option></Select>}
             <Select label="Storage" value={edit.storage} onChange={(e) => setEdit({ ...edit, storage: e.target.value })}><option value="ambient">Ambient</option><option value="cold_chain">Cold chain</option></Select>
+            {branches.length > 1 ? (
+              <div className="sm:col-span-2">
+                <div className="mb-1 text-sm font-medium">Branch overrides <span className="font-normal text-slate-500">(leave blank to use the central price and reorder level)</span></div>
+                <div className="space-y-2">{branches.map((b) => {
+                  const bp = (edit.branchPrices || []).find((x: any) => x.branch === b._id); const br = (edit.branchReorder || []).find((x: any) => x.branch === b._id);
+                  const upd = (key: "branchPrices" | "branchReorder", field: "price" | "level", v: string) => { const list = (edit[key] || []).filter((x: any) => x.branch !== b._id); setEdit({ ...edit, [key]: [...list, { branch: b._id, [field]: v }] }); };
+                  return <div key={b._id} className="grid grid-cols-3 items-center gap-2 text-sm"><span>{b.name}</span><Input placeholder="Price" type="number" value={bp?.price ?? ""} onChange={(e) => upd("branchPrices", "price", e.target.value)} /><Input placeholder="Reorder level" type="number" value={br?.level ?? ""} onChange={(e) => upd("branchReorder", "level", e.target.value)} /></div>;
+                })}</div>
+              </div>
+            ) : null}
             <div className="sm:col-span-2 space-y-3"><ErrorNote error={err} /><Button className="w-full" onClick={save}>Save product</Button></div>
           </div>
         )}

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { api, dateTime, money } from "@/lib/api";
 import { useShopAuth } from "@/lib/shop";
@@ -17,6 +17,14 @@ export default function MyOrders({ params }: { params: Promise<{ slug: string }>
   const orders = useLoad(() => auth.call("/portal/orders/mine"), [auth.token], !!auth.token);
   const [msg, setMsg] = useState<Record<string, string>>({}); const [err, setErr] = useState<string | null>(null);
 
+  // Back from the payment page: confirm the payment with the server.
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (!ref || !auth.token || !orders.data) return;
+    const o = orders.data.find((x: any) => x.payment?.reference === ref && x.payment.status === "pending");
+    if (o) auth.call(`/portal/orders/${o._id}/verify-payment`, { body: {} }).then(() => orders.reload()).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.token, orders.data?.length]);
   const cancel = async (o: any) => { if (!confirm("Cancel this order?")) return; try { await auth.call(`/portal/orders/${o._id}/cancel`, { body: {} }); orders.reload(); } catch (e: any) { setErr(e.message); } };
   const send = async (o: any) => { try { await auth.call(`/portal/orders/${o._id}/message`, { body: { text: msg[o._id] } }); setMsg({ ...msg, [o._id]: "" }); orders.reload(); } catch (e: any) { setErr(e.message); } };
   const exportData = async () => { const d = await auth.call("/portal/me/export"); const url = URL.createObjectURL(new Blob([JSON.stringify(d, null, 2)], { type: "application/json" })); const a = document.createElement("a"); a.href = url; a.download = "my-data.json"; a.click(); };
@@ -46,6 +54,10 @@ export default function MyOrders({ params }: { params: Promise<{ slug: string }>
                       <li key={s} className="flex flex-1 items-center last:flex-none"><span className={`grid h-6 w-6 place-items-center rounded-full text-xs ${i <= idx ? "bg-teal-700 text-white" : "bg-slate-200 text-slate-500"}`}>{i < idx ? <Check className="h-3.5 w-3.5" /> : i + 1}</span>{i < STEPS.length - 1 && <span className={`mx-1 h-0.5 flex-1 ${i < idx ? "bg-teal-700" : "bg-slate-200"}`} />}</li>))}</ol>
                   )}
                   {!dead && <div className="mt-1 flex justify-between text-[10px] text-slate-500 sm:text-xs"><span>Received</span><span>Approved</span><span>Packed</span><span>Out for delivery</span><span>Delivered</span></div>}
+                  {o.payment.status === "pending" && o.payment.authUrl && !dead && <div className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Payment not completed. We are holding your items until {dateTime(o.reservedUntil)}. <a className="font-semibold underline" href={o.payment.authUrl}>Pay now</a></div>}
+                  {o.status === "out_for_delivery" && o.rider?.location && <div className="mt-2 text-sm">Rider last seen {dateTime(o.rider.location.at)} · <a className="font-medium text-teal-700 underline" target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${o.rider.location.lat}&mlon=${o.rider.location.lng}#map=16/${o.rider.location.lat}/${o.rider.location.lng}`}>View on map</a></div>}
+                  {o.status === "out_for_delivery" && o.rider?.phone && <div className="mt-1 text-sm">Call rider: <a className="text-teal-700 underline" href={`tel:${o.rider.phone}`}>{o.rider.phone}</a></div>}
+                  {o.status === "out_for_delivery" && o.rider?.trackingUrl && <div className="mt-1 text-sm"><a className="text-teal-700 underline" target="_blank" rel="noreferrer" href={o.rider.trackingUrl}>Courier tracking</a></div>}
                   {o.status === "out_for_delivery" && <div className="mt-3 rounded-lg bg-violet-50 p-3 text-sm text-violet-900">With {o.rider?.name}. Give the rider this code on arrival: <b className="font-mono text-lg">{o.deliveryCode}</b></div>}
                   {o.messages?.map((m: any, i: number) => <p key={i} className="mt-2 text-sm"><b>{m.from === "pharmacist" ? "Pharmacist" : "You"}:</b> {m.text}</p>)}
                   {!dead && o.status !== "delivered" && (

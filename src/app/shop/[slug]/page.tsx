@@ -150,6 +150,7 @@ function Cart({ open, onClose, cart, setCart, branch, shop, slug, auth, needLogi
     setBusy(true); setErr(null);
     try {
       const o = await auth.call(`/portal/${slug}/orders`, { body: { branch: branch._id, items: cart.map((i: Item) => ({ product: i.product._id, qty: i.qty })), fulfilment, address: fulfilment === "delivery" ? { line, digitalAddress: digital, zone } : undefined, payment: { method }, prescriptionImage: needsRx && !refill ? image : undefined, refillOf: refill || undefined } });
+      if (o.paymentUrl) { setCart([]); window.location.href = o.paymentUrl; return; }
       onPlaced(o);
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   };

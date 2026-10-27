@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
-import { dateFmt, money } from "@/lib/api";
+import { dateFmt, dateTime, money } from "@/lib/api";
 import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Spinner, StatusBadge, Table, Td } from "@/components/ui";
 
 const blank = { name: "", phone: "", email: "", allergies: "", conditions: "", creditLimit: "", consentComms: true, consentHealth: false };
@@ -22,6 +22,8 @@ export default function Customers() {
     catch (e: any) { setErr(e.message); }
   };
   const open = async (id: string) => setView(await call(`/customers/${id}`)); // logged as a record view on the server
+  const [stmt, setStmt] = useState<any>(null);
+  const statement = async (id: string) => setStmt(await call(`/customers/${id}/statement`));
   const payment = async (c: any) => { const a = prompt(`Payment received from ${c.name} (balance ${money(c.balance)})`); if (a) { await call(`/customers/${c._id}/payments`, { body: { amount: Number(a) } }); list.reload(); setView(null); } };
 
   return (
@@ -41,6 +43,13 @@ export default function Customers() {
           </Table>
         )}
       </Card>
+      <Modal open={!!stmt} onClose={() => setStmt(null)} title={`Statement: ${stmt?.customer.name || ""}`} wide>
+        {stmt && <div className="space-y-3 text-sm">
+          <div className="flex justify-between"><span>Credit limit {money(stmt.customer.creditLimit)}</span><b>Balance due {money(stmt.customer.balance)}</b></div>
+          <Table head={["Date", "Type", "Reference", "Amount", "Balance"]} empty="No activity">{stmt.rows.map((r: any, i: number) => <tr key={i}><Td>{dateTime(r.at)}</Td><Td>{r.type === "charge" ? "Credit sale" : "Payment"}</Td><Td className="font-mono text-xs">{r.ref}</Td><Td className="tabular-nums">{r.type === "payment" ? "-" : ""}{money(r.amount)}</Td><Td className="tabular-nums font-medium">{money(r.balance)}</Td></tr>)}</Table>
+          <Button className="no-print" variant="outline" onClick={() => window.print()}>Print statement</Button>
+        </div>}
+      </Modal>
       <Modal open={!!form} onClose={() => setForm(null)} title="Add customer">
         {form && <div className="space-y-3">
           <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /><Input label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /><Input label="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
@@ -54,7 +63,7 @@ export default function Customers() {
       <Modal open={!!view} onClose={() => setView(null)} title={view?.customer.name || ""} wide>
         {view && <div className="space-y-4 text-sm">
           <div className="grid gap-2 sm:grid-cols-2"><div>Phone: {view.customer.phone}</div><div>Email: {view.customer.email || "-"}</div><div>Allergies: {view.customer.allergies?.join(", ") || "none recorded"}</div><div>Conditions: {view.customer.conditions?.join(", ") || "-"}</div><div>Loyalty points: {view.customer.loyaltyPoints}</div><div>Consent: comms {view.customer.consent?.communications ? "yes" : "no"}, health data {view.customer.consent?.healthData ? "yes" : "no"} ({dateFmt(view.customer.consent?.at)})</div></div>
-          {view.customer.creditLimit > 0 && <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">Account balance {money(view.customer.balance)} of {money(view.customer.creditLimit)}{can("accountant", "cashier", "branch_manager") && <Button size="sm" onClick={() => payment(view.customer)}>Record payment</Button>}</div>}
+          {view.customer.creditLimit > 0 && <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">Account balance {money(view.customer.balance)} of {money(view.customer.creditLimit)}<span className="flex gap-2"><Button size="sm" variant="outline" onClick={() => statement(view.customer._id)}>Statement</Button>{can("accountant", "cashier", "branch_manager") && <Button size="sm" onClick={() => payment(view.customer)}>Record payment</Button>}</span></div>}
           <div><h3 className="mb-1 font-semibold">Prescription history</h3>{view.prescriptions.map((r: any) => <div key={r._id} className="flex items-center justify-between border-b border-slate-100 py-1.5"><span>{r.rxNo} · {r.items.map((i: any) => i.name).join(", ")}</span><StatusBadge s={r.status} /></div>)}{!view.prescriptions.length && <p className="text-slate-500">None</p>}</div>
         </div>}
       </Modal>

@@ -12,7 +12,7 @@ export default function Orders() {
   const [tab, setTab] = useState(TABS[0][0]);
   const list = useLoad(() => call(`/orders?status=${tab}`), [tab, branch?._id]);
   const [o, setO] = useState<any>(null); const [err, setErr] = useState<string | null>(null);
-  const [riders, setRiders] = useState<any[]>([]); const [rider, setRider] = useState(""); const [courier, setCourier] = useState("");
+  const [riders, setRiders] = useState<any[]>([]); const [rider, setRider] = useState(""); const [courier, setCourier] = useState(""); const [trackUrl, setTrackUrl] = useState("");
   const [reason, setReason] = useState(""); const [msg, setMsg] = useState(""); const [code, setCode] = useState(""); const [recipient, setRecipient] = useState("");
   const [passTo, setPassTo] = useState("");
   const { branches } = useAuth();
@@ -73,7 +73,8 @@ export default function Orders() {
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Select label="Assign own rider" value={rider} onChange={(e) => setRider(e.target.value)}><option value="">-</option>{riders.map((r) => <option key={r._id} value={r._id}>{r.name}</option>)}</Select>
                   <Input label="...or third-party courier" value={courier} onChange={(e) => setCourier(e.target.value)} placeholder="Courier name" />
-                  <div className="sm:col-span-2"><Button disabled={!rider && !courier} onClick={() => act("dispatch", rider ? { riderId: rider } : { courierName: courier })}>Dispatch</Button></div>
+                  {!rider && courier && <div className="sm:col-span-2"><Input label="Courier tracking link (optional)" value={trackUrl} onChange={(e) => setTrackUrl(e.target.value)} /></div>}
+                  <div className="sm:col-span-2"><Button disabled={!rider && !courier} onClick={() => act("dispatch", rider ? { riderId: rider } : { courierName: courier, trackingUrl: trackUrl || undefined })}>Dispatch</Button></div>
                 </div>
               )}
               {o.status === "packed" && o.fulfilment === "pickup" && <div className="flex gap-2"><Input placeholder="Collected by (name)" value={recipient} onChange={(e) => setRecipient(e.target.value)} /><Button disabled={!recipient} onClick={() => act("deliver", { recipient })}>Hand over</Button></div>}
