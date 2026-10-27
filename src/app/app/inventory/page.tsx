@@ -7,7 +7,11 @@ import { adjustLocalStock, loadCatalog, newClientId, queueOp } from "@/lib/offli
 import { ApiError } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
 import { dateFmt, daysUntil, money } from "@/lib/api";
+import ProductImage from "@/components/ProductImage";
 import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, Stat, Table, Td, Ref } from "@/components/ui";
+
+// Brand names often already carry the strength ("Ibuprofen 400"); avoid printing it twice.
+const productName = (p: any) => (p.strength && !p.brand.includes(p.strength.replace(/[^0-9/.]/g, "")) ? `${p.brand} ${p.strength}` : p.brand);
 
 export default function Inventory() {
   const { call, can, branch } = useAuth();
@@ -78,33 +82,52 @@ export default function Inventory() {
         </div>
         <ErrorNote error={list.error} />
         {list.loading && !list.data ? <Spinner /> : (
-          <Table head={["Product", "On hand", "Reorder at", "Near expiry", "Expired", "Next expiry", "Value", ""]} empty="No stock records">
+          <Table head={["Product", "On hand", "Reorder at", "Expiry", "Stock value", ""]} right={[1, 2, 4]} empty="No stock records">
             {(list.data || []).map((r: any) => (
-              <tr key={r.product._id}>
-                <Td><div className="font-medium">{r.product.brand} {r.product.strength}</div><div className="text-xs text-slate-500">{r.product.generic}</div></Td>
-                <Td><span className={r.low ? "font-semibold text-amber-700" : ""}>{r.qty}</span> {r.low && <Badge tone="amber">Low</Badge>}{r.quarantined > 0 && <Badge tone="red">{r.quarantined} quarantined</Badge>}</Td>
-                <Td>{r.reorderLevel}</Td>
-                <Td>{r.nearExpiry ? <Badge tone="amber">{r.nearExpiry}</Badge> : "-"}</Td>
-                <Td>{r.expired ? <Badge tone="red">{r.expired}</Badge> : "-"}</Td>
-                <Td>{dateFmt(r.nextExpiry)}</Td><Td className="whitespace-nowrap tabular-nums">{money(r.value)}</Td>
-                <Td className="text-right"><Button size="sm" variant="ghost" onClick={() => openBatches(r)}>Batches</Button></Td>
+              <tr key={r.product._id} className="cursor-pointer" onClick={() => openBatches(r)}>
+                <Td>
+                  <div className="flex items-center gap-3">
+                    <ProductImage product={r.product} size="sm" className="h-10 w-10 shrink-0 rounded-md border border-slate-200" />
+                    <div><div className="font-medium text-slate-900">{productName(r.product)}</div><div className="text-xs text-slate-500">{r.product.generic}</div></div>
+                  </div>
+                </Td>
+                <Td className="text-right">
+                  <div className={`font-medium tabular-nums ${r.qty === 0 ? "text-red-700" : r.low ? "text-amber-700" : "text-slate-900"}`}>{r.qty}</div>
+                  {r.qty === 0 ? <div className="text-xs text-red-700">Out of stock</div> : r.low ? <div className="text-xs text-amber-700">Low</div> : null}
+                  {r.quarantined > 0 && <div className="text-xs text-red-700">{r.quarantined} quarantined</div>}
+                </Td>
+                <Td className="text-right tabular-nums text-slate-500">{r.reorderLevel}</Td>
+                <Td>
+                  <div className="tabular-nums">{r.nextExpiry ? dateFmt(r.nextExpiry) : "-"}</div>
+                  {(r.expired > 0 || r.nearExpiry > 0) && <div className="text-xs">{r.expired > 0 && <span className="text-red-700">{r.expired} expired</span>}{r.expired > 0 && r.nearExpiry > 0 && <span className="text-slate-400"> · </span>}{r.nearExpiry > 0 && <span className="text-amber-700">{r.nearExpiry} within 90 days</span>}</div>}
+                </Td>
+                <Td className="whitespace-nowrap text-right tabular-nums">{money(r.value)}</Td>
+                <Td className="text-right"><Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openBatches(r); }}>Batches</Button></Td>
               </tr>
             ))}
           </Table>
         )}
       </Card>
 
-      <Modal open={!!sel} onClose={() => setSel(null)} title={`Batches: ${sel?.product.brand || ""}`} wide>
-        <Table head={["Batch", "Expiry", "Qty", "Cost", "Status", ""]} empty="No batches">
+      <Modal open={!!sel} onClose={() => setSel(null)} title="Batches" wide>
+        {sel && (
+          <div className="mb-4 flex items-center gap-4">
+            <ProductImage product={sel.product} size="sm" className="h-14 w-14 shrink-0 rounded-lg border border-slate-200" />
+            <div className="flex-1"><div className="text-base font-semibold text-slate-900">{productName(sel.product)}</div><div className="text-sm text-slate-500">{sel.product.generic}</div></div>
+            <div className="text-right"><div className="text-xl font-semibold tabular-nums">{sel.qty}</div><div className="text-xs text-slate-500">on hand · {money(sel.value)}</div></div>
+          </div>
+        )}
+        <p className="mb-2 text-xs text-slate-500">Sold first-expiry-first-out: the top batch goes first.</p>
+        <Table head={["Batch", "Expiry", "Qty", "Cost", "Status", ""]} right={[2, 3]} empty="No batches">
           {batches.map((b) => { const d = daysUntil(b.expiry)!; return (
             <tr key={b._id}>
               <Td><Ref>{b.batchNo}</Ref></Td>
-              <Td>{dateFmt(b.expiry)} {d < 0 ? <Badge tone="red">Expired</Badge> : d <= 30 ? <Badge tone="red">{d}d</Badge> : d <= 90 ? <Badge tone="amber">{d}d</Badge> : null}</Td>
-              <Td>{b.qty}</Td><Td>{money(b.cost)}</Td>
+              <Td><div className="tabular-nums">{dateFmt(b.expiry)}</div>{d < 0 ? <div className="text-xs text-red-700">Expired</div> : d <= 90 ? <div className={`text-xs ${d <= 30 ? "text-red-700" : "text-amber-700"}`}>in {d} days</div> : null}</Td>
+              <Td className="text-right tabular-nums">{b.qty}</Td><Td className="text-right tabular-nums">{money(b.cost)}</Td>
               <Td>{b.status === "quarantined" ? <Badge tone="red">Quarantined</Badge> : <Badge tone="green">Active</Badge>}</Td>
               <Td className="whitespace-nowrap text-right">
                 {manage && <Button size="sm" variant="ghost" onClick={() => { setAdj({ batch: b, newQty: b.qty, reason: "", witness: "" }); setErr(null); }}>Adjust</Button>}
-                {can("pharmacist", "branch_manager", "store_officer") && (b.status === "quarantined" ? <Button size="sm" variant="ghost" onClick={() => quarantine(b, true)}>Release</Button> : <Button size="sm" variant="ghost" onClick={() => quarantine(b)}><ShieldAlert className="h-3.5 w-3.5" />Recall</Button>)}
+                {can("pharmacist", "branch_manager", "store_officer") && (b.status === "quarantined" ? <Button size="sm" variant="ghost" onClick={() => quarantine(b, true)}>Release</Button> : <Button size="sm" variant="ghost" onClick={() => quarantine(b)}>Recall</Button>)}
                 <Button size="sm" variant="ghost" onClick={() => doTrace(b)}>Trace</Button>
               </Td>
             </tr>); })}
