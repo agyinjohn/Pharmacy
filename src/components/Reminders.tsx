@@ -18,7 +18,7 @@ export function StaffReminders({ call, customerId, canEdit }: { call: any; custo
   const active = (list.data || []).filter((p) => p.active);
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between"><h3 className="flex items-center gap-2 font-semibold"><BellRing className="h-4 w-4 text-brand-700" />Medication reminders</h3>{canEdit && !add && <Button size="sm" variant="ghost" onClick={() => setAdd({ medicine: "", dose: "", times: "08:00, 20:00", days: "30" })}><Plus className="h-3.5 w-3.5" />Add</Button>}</div>
+      <div className="mb-1 flex items-center justify-between"><h3 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500"><BellRing className="h-3.5 w-3.5" />Medication reminders (SMS)</h3>{canEdit && !add && <Button size="sm" variant="ghost" onClick={() => setAdd({ medicine: "", dose: "", times: "08:00, 20:00", days: "30" })}><Plus className="h-3.5 w-3.5" />Add</Button>}</div>
       {active.map((p) => (
         <div key={p._id} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-2">
           <div><div className="font-medium">{p.medicine} {p.dose && <span className="font-normal text-slate-500">· {p.dose}</span>}</div>

@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { AlertTriangle, Check, Plus, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
 import { dateFmt, dateTime, money } from "@/lib/api";
@@ -61,13 +61,59 @@ export default function Customers() {
           <ErrorNote error={err} /><Button className="w-full" onClick={save}>Save customer</Button>
         </div>}
       </Modal>
-      <Modal open={!!view} onClose={() => setView(null)} title={view?.customer.name || ""} wide>
-        {view && <div className="space-y-4 text-sm">
-          <div className="grid gap-2 sm:grid-cols-2"><div>Phone: {view.customer.phone}</div><div>Email: {view.customer.email || "-"}</div><div>Allergies: {view.customer.allergies?.join(", ") || "none recorded"}</div><div>Conditions: {view.customer.conditions?.join(", ") || "-"}</div><div>Loyalty points: {view.customer.loyaltyPoints}</div><div>Consent: comms {view.customer.consent?.communications ? "yes" : "no"}, health data {view.customer.consent?.healthData ? "yes" : "no"} ({dateFmt(view.customer.consent?.at)})</div></div>
-          {view.customer.creditLimit > 0 && <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">Account balance {money(view.customer.balance)} of {money(view.customer.creditLimit)}<span className="flex gap-2"><Button size="sm" variant="outline" onClick={() => statement(view.customer._id)}>Statement</Button>{can("accountant", "cashier", "branch_manager") && <Button size="sm" onClick={() => payment(view.customer)}>Record payment</Button>}</span></div>}
-          <StaffReminders call={call} customerId={view.customer._id} canEdit={can("pharmacist", "branch_manager")} />
-          <div><h3 className="mb-1 font-semibold">Prescription history</h3>{view.prescriptions.map((r: any) => <div key={r._id} className="flex items-center justify-between border-b border-slate-100 py-1.5"><span>{r.rxNo} · {r.items.map((i: any) => i.name).join(", ")}</span><StatusBadge s={r.status} /></div>)}{!view.prescriptions.length && <p className="text-slate-500">None</p>}</div>
-        </div>}
+      <Modal open={!!view} onClose={() => setView(null)} title="Customer record" wide>
+        {view && (() => { const c = view.customer; return (
+          <div className="space-y-6 text-sm">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="grid h-12 w-12 place-items-center rounded-full bg-brand-50 text-base font-semibold text-brand-800">{c.name.split(" ").map((w: string) => w[0]).slice(0, 2).join("")}</div>
+              <div className="flex-1">
+                <div className="text-lg font-semibold text-slate-900">{c.name}</div>
+                <div className="text-slate-500">{[c.phone, c.email].filter(Boolean).join(" · ")}</div>
+              </div>
+              <div className="rounded-lg border border-slate-200 px-3 py-2 text-right"><div className="text-lg font-semibold leading-tight tabular-nums">{c.loyaltyPoints || 0}</div><div className="text-xs text-slate-500">loyalty points</div></div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className={`rounded-lg border p-3 ${c.allergies?.length ? "border-red-200 bg-red-50" : "border-slate-200"}`}>
+                <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Allergies</div>
+                {c.allergies?.length ? <div className="mt-1 flex items-center gap-1.5 font-medium text-red-800"><AlertTriangle className="h-4 w-4" />{c.allergies.join(", ")}</div> : <div className="mt-1 text-slate-600">None recorded</div>}
+              </div>
+              <div className="rounded-lg border border-slate-200 p-3">
+                <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Conditions</div>
+                <div className="mt-1 text-slate-800">{c.conditions?.join(", ") || "None recorded"}</div>
+              </div>
+              <div className="rounded-lg border border-slate-200 p-3">
+                <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Consent</div>
+                <div className="mt-1 space-y-0.5">
+                  {[["SMS / email", c.consent?.communications], ["Health records", c.consent?.healthData]].map(([l, ok]) => <div key={l as string} className="flex items-center gap-1.5 text-slate-700">{ok ? <Check className="h-3.5 w-3.5 text-brand-600" /> : <X className="h-3.5 w-3.5 text-slate-400" />}{l as string}</div>)}
+                  {c.consent?.at && <div className="text-xs text-slate-500">Given {dateFmt(c.consent.at)}</div>}
+                </div>
+              </div>
+            </div>
+
+            {c.creditLimit > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
+                <div><div className="text-xs font-medium uppercase tracking-wide text-slate-500">Account</div><div className="mt-1"><b className="tabular-nums">{money(c.balance)}</b> <span className="text-slate-500">owed of {money(c.creditLimit)} limit</span></div></div>
+                <span className="flex gap-2"><Button size="sm" variant="outline" onClick={() => statement(c._id)}>Statement</Button>{can("accountant", "cashier", "branch_manager") && <Button size="sm" onClick={() => payment(c)}>Record payment</Button>}</span>
+              </div>
+            )}
+
+            <StaffReminders call={call} customerId={c._id} canEdit={can("pharmacist", "branch_manager")} />
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div>
+                <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Prescriptions</h3>
+                {view.prescriptions.map((r: any) => <div key={r._id} className="flex items-start justify-between gap-2 border-b border-slate-100 py-2 last:border-0"><div><div className="text-slate-800">{r.items.map((i: any) => i.name).join(", ")}</div><div className="text-xs text-slate-500"><Ref>{r.rxNo}</Ref> · {dateFmt(r.createdAt)}</div></div><StatusBadge s={r.status} /></div>)}
+                {!view.prescriptions.length && <p className="text-slate-500">None yet</p>}
+              </div>
+              <div>
+                <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Recent purchases</h3>
+                {(view.purchases || []).map((s: any) => <div key={s._id} className="flex items-start justify-between gap-2 border-b border-slate-100 py-2 last:border-0"><div><div className="text-slate-800">{s.items.map((i: any) => `${i.name} × ${i.qty}`).join(", ")}</div><div className="text-xs text-slate-500"><Ref>{s.receiptNo}</Ref> · {dateFmt(s.createdAt)} · {s.channel === "online" ? "Online" : s.branch?.name || "In store"}</div></div><span className="tabular-nums font-medium">{money(s.total)}</span></div>)}
+                {!view.purchases?.length && <p className="text-slate-500">None yet</p>}
+              </div>
+            </div>
+          </div>
+        ); })()}
       </Modal>
     </div>
   );
