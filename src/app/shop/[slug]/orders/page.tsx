@@ -78,7 +78,7 @@ function CurrentOrder({ o, msg, setMsg, send, cancel }: { o: any; msg: string; s
       )}
       <Items o={o} />
       <Summary o={o} />
-      {o.fulfilment === "delivery" && !o.deliveryFee && <p className="mt-2 text-xs text-slate-500">The delivery fee is agreed with you by phone and paid separately.</p>}
+      {o.fulfilment === "delivery" && <p className="mt-2 text-xs text-slate-500">{o.deliveryFee ? `Delivery fee ${money(o.deliveryFee)}, paid on delivery.` : "The pharmacy will call you to agree the delivery fee. It is paid on delivery."}</p>}
       {o.messages?.length > 0 && <div className="mt-4 space-y-2">{o.messages.map((m: any, i: number) => <div key={i} className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${m.from === "pharmacist" ? "bg-slate-100 text-slate-800" : "ml-auto bg-brand-700 text-white"}`}><div className="text-[11px] opacity-70">{m.from === "pharmacist" ? "Pharmacist" : "You"}</div>{m.text}</div>)}</div>}
       <div className="mt-4 flex gap-2">
         <div className="flex-1"><Input placeholder="Message the pharmacist" value={msg} onChange={(e) => setMsg(e.target.value)} /></div>

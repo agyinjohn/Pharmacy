@@ -20,7 +20,7 @@ export default function Orders() {
   const [o, setO] = useState<any>(null); const [err, setErr] = useState<string | null>(null);
   const [riders, setRiders] = useState<any[]>([]); const [rider, setRider] = useState(""); const [courier, setCourier] = useState(""); const [trackUrl, setTrackUrl] = useState("");
   const [reason, setReason] = useState(""); const [msg, setMsg] = useState(""); const [code, setCode] = useState(""); const [recipient, setRecipient] = useState("");
-  const [passTo, setPassTo] = useState(""); const [mode, setMode] = useState<null | "edit" | "message" | "pass" | "reject">(null);
+  const [passTo, setPassTo] = useState(""); const [fee, setFee] = useState(""); const [mode, setMode] = useState<null | "edit" | "message" | "pass" | "reject">(null);
   // Pharmacist edit: change quantities, remove items, substitute products (CP-ORD-03).
   const [edit, setEdit] = useState<any[] | null>(null); const [editReason, setEditReason] = useState("");
   const [subsFor, setSubsFor] = useState<{ idx: number; list: any[] } | null>(null);
@@ -30,7 +30,7 @@ export default function Orders() {
   const { branches } = useAuth();
   const pharm = user?.role === "pharmacist" || user?.role === "owner";
 
-  const open = async (id: string) => { setErr(null); setEdit(null); setMode(null); setRecipient(""); setCode(""); setSubsFor(null); setO(await call(`/orders/${id}`)); setRiders(await call("/riders").catch(() => [])); };
+  const open = async (id: string) => { setErr(null); setFee(""); setEdit(null); setMode(null); setRecipient(""); setCode(""); setSubsFor(null); setO(await call(`/orders/${id}`)); setRiders(await call("/riders").catch(() => [])); };
   const act = async (path: string, body: any = {}) => { setErr(null); try { const r = await call(`/orders/${o._id}/${path}`, { body }); setO(r); list.reload(); setReason(""); setMsg(""); return r; } catch (e: any) { setErr(e.message); } };
   const refreshO = async () => setO(await call(`/orders/${o._id}`));
 
@@ -89,13 +89,23 @@ export default function Orders() {
               ))}
               <div className="space-y-1 bg-slate-50 px-4 py-3">
                 {o.discount > 0 && <div className="flex justify-between text-emerald-700"><span>Promotions</span><span className="tabular-nums">-{money(o.discount)}</span></div>}
-                {o.fulfilment === "delivery" && <div className="flex justify-between text-slate-600"><span>Delivery</span><span className={o.deliveryFee ? "tabular-nums" : "text-slate-500"}>{o.deliveryFee ? money(o.deliveryFee) : "Agreed by phone, paid separately"}</span></div>}
-                <div className="flex justify-between text-base font-semibold"><span>Total</span><span className="tabular-nums">{money(o.total)}</span></div>
+                {o.fulfilment === "delivery" && <div className="flex justify-between text-slate-600"><span>Delivery</span><span className={o.deliveryFee ? "tabular-nums" : "text-slate-500"}>{o.deliveryFee ? `${money(o.deliveryFee)}, paid on delivery` : "Not agreed yet"}</span></div>}
+                {o.fulfilment === "delivery" && (o.deliveryFee > 0 || o.payment.method === "cod") && <div className="flex justify-between text-slate-600"><span>To collect on delivery</span><span className="font-medium tabular-nums text-slate-900">{money((o.payment.method === "cod" && o.payment.status !== "paid" ? o.total : 0) + (o.deliveryFee || 0))}</span></div>}
+                <div className="flex justify-between text-base font-semibold"><span>{o.fulfilment === "delivery" ? "Total for items" : "Total"}</span><span className="tabular-nums">{money(o.total)}</span></div>
                 {o.payment.refundedAmount > 0 && <div className="flex justify-between text-slate-500"><span>Refunded</span><span className="tabular-nums">{money(o.payment.refundedAmount)}</span></div>}
               </div>
             </div>
 
-            {o.fulfilment === "delivery" && !["delivered", "cancelled", "rejected", "failed"].includes(o.status) && <div className="flex items-center gap-2 rounded-lg border border-slate-200 p-3 text-slate-700"><Phone className="h-4 w-4 shrink-0 text-slate-400" /><span>Call <a href={`tel:${o.customer?.phone}`} className="font-medium underline">{o.customer?.phone}</a> to agree the delivery fee and time. The fee is paid separately.</span></div>}
+            {o.fulfilment === "delivery" && !["delivered", "cancelled", "rejected", "failed"].includes(o.status) && (
+              <div className="rounded-lg border border-slate-200 p-3 text-slate-700">
+                <div className="flex items-start gap-2"><Phone className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" /><span>{o.deliveryFee ? "Delivery fee agreed." : <>Call <a href={`tel:${o.customer?.phone}`} className="font-medium underline">{o.customer?.phone}</a> to agree the delivery fee and time, then record the fee here.</>}</span></div>
+                <div className="mt-3 flex flex-wrap items-center gap-2 pl-6">
+                  <div className="w-36"><Input aria-label="Agreed delivery fee" type="number" min={0} step="0.5" placeholder="Fee (GH₵)" value={fee} onChange={(e) => setFee(e.target.value)} /></div>
+                  <Button size="sm" variant="outline" disabled={fee === "" || Number(fee) === (o.deliveryFee || 0)} onClick={() => act("delivery-fee", { fee: Number(fee) })}>{o.deliveryFee ? "Update fee" : "Save fee"}</Button>
+                  {o.deliveryFee > 0 && <span className="text-xs text-slate-500">Customer was sent a text with the fee.</span>}
+                </div>
+              </div>
+            )}
             {o.prescription && (o.prescription.status === "pending"
               ? <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
                   <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 font-medium"><FileText className="h-4 w-4" />Prescription {o.prescription.rxNo} needs verifying first</div><div className="flex gap-2"><Link href="/app/prescriptions" className="rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-amber-100">Open prescriptions</Link><Button size="sm" variant="outline" onClick={refreshO}>Check again</Button></div></div>

@@ -37,7 +37,7 @@ const GROUPS: [string, Rep[]][] = [
 const ALL = GROUPS.flatMap(([, r]) => r);
 const day = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 const PRESETS: [string, number][] = [["7 days", 7], ["30 days", 30], ["90 days", 90]];
-const MONEY = /^(subtotal|total|revenue|cost|margin|tax|discount|discounts|net_sales|gross|value|value_at_risk|balance_due|credit_limit|claim_amount|dispensed_value|copay|collected|refunded|paid|pending|awaiting_cod|net_expected_from_provider)$/;
+const MONEY = /^(subtotal|total|delivery_fee|revenue|cost|margin|tax|discount|discounts|net_sales|gross|value|value_at_risk|balance_due|credit_limit|claim_amount|dispensed_value|copay|collected|refunded|paid|pending|awaiting_cod|net_expected_from_provider)$/;
 const COUNT = /^(sales|qty|orders)$/;
 const short = (v: number) => (v >= 1000 ? `${+(v / 1000).toFixed(1)}k` : String(Math.round(v)));
 
