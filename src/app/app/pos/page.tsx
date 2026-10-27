@@ -107,7 +107,7 @@ export default function POS() {
     const items = cart.map((l) => ({ product: l.product._id, qty: l.qty }));
     const receipt = {
       receiptNo: `OFF-${clientId.slice(0, 6).toUpperCase()}`, createdAt, cashier: { name: user.name }, offline: true,
-      items: cart.map((l) => ({ name: `${l.product.brand} ${l.product.strength || ""}`.trim(), qty: l.qty, unitPrice: l.product.price, tax: l.product.price * l.qty * (l.product.taxRate || 0), lineTotal: l.product.price * l.qty })),
+      items: cart.map((l) => ({ name: `${l.product.brand} ${l.product.strength || ""}`.trim(), directions: [l.product.directions, l.product.warnings].filter(Boolean).join(" ") || undefined, qty: l.qty, unitPrice: l.product.price, tax: l.product.price * l.qty * (l.product.taxRate || 0), lineTotal: l.product.price * l.qty })),
       subtotal, discount: disc, tax, total, payments, changeGiven: change,
     };
     if (payments.some((p) => p.method === "loyalty")) { setError("Loyalty points need a connection."); return; }
@@ -219,7 +219,8 @@ export default function POS() {
             {cart.map((l) => {
               const pr = promoOf(l.product._id);
               return (
-                <div key={l.product._id} className="flex items-center gap-3 border-b border-slate-100 py-3">
+                <div key={l.product._id} className="border-b border-slate-100 py-3">
+                <div className="flex items-center gap-3">
                   <ProductImage product={l.product} size="xs" className="h-10 w-10 shrink-0 rounded-md" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{l.product.brand}</div>
@@ -231,6 +232,8 @@ export default function POS() {
                     <button aria-label="One more" onClick={() => setQty(l.product._id, 1)} className="grid h-7 w-7 place-items-center text-slate-500 hover:bg-slate-50"><Plus className="h-3.5 w-3.5" /></button>
                   </div>
                   <div className="w-[4.75rem] text-right text-sm font-medium tabular-nums">{money(l.product.price * l.qty - (pr?.promoDiscount || 0))}</div>
+                </div>
+                {(l.product.directions || l.product.warnings) && <div className="ml-[3.25rem] mt-1.5 rounded-md bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600"><span className="font-medium text-slate-700">Tell the customer: </span>{l.product.directions}{l.product.warnings && <span className="block text-amber-800">{l.product.warnings}</span>}</div>}
                 </div>
               );
             })}

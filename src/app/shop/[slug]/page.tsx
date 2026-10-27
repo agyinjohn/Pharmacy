@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
-import { Banknote, Clock, CreditCard, FileText, MapPin, Phone, Minus, Plus, Search, ShieldCheck, ShoppingBag, Smartphone, Store, Trash2, Truck, Upload, User } from "lucide-react";
+import { Banknote, Clock, CreditCard, FileText, Info, MapPin, Phone, Minus, Plus, Search, ShieldCheck, ShoppingBag, Smartphone, Store, Trash2, Truck, Upload, User } from "lucide-react";
 import { api, money, store } from "@/lib/api";
 import { useShopAuth } from "@/lib/shop";
 import { useLoad } from "@/lib/useLoad";
@@ -24,6 +24,7 @@ export default function Shop({ params }: { params: Promise<{ slug: string }> }) 
   const [alt, setAlt] = useState<{ p: any; list: any[] } | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [placed, setPlaced] = useState<any>(null);
+  const [howTo, setHowTo] = useState<any>(null);
 
   useEffect(() => { try { const c = localStorage.getItem(`cart:${slug}`); if (c) setCart(JSON.parse(c)); const b = localStorage.getItem(`shopbranch:${slug}`); if (b) setBranchId(b); } catch {} }, [slug]);
   useEffect(() => { try { localStorage.setItem(`cart:${slug}`, JSON.stringify(cart)); } catch {} }, [cart, slug]);
@@ -101,6 +102,7 @@ export default function Shop({ params }: { params: Promise<{ slug: string }> }) 
                     <div className="mt-2 space-y-0.5 text-xs">
                       {p.requiresRx && <div className="flex items-center gap-1 text-amber-700"><FileText className="h-3.5 w-3.5" />Prescription needed</div>}
                       {!p.inStock ? <div className="text-red-700">Out of stock here</div> : p.stock < 10 ? <div className="text-amber-700">Only {p.stock} left</div> : null}
+                      {(p.directions || p.warnings) && <button onClick={() => setHowTo(p)} className="flex items-center gap-1 text-slate-600 underline-offset-2 hover:underline"><Info className="h-3.5 w-3.5" />How to take</button>}
                     </div>
                     <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
                       <span className="whitespace-nowrap font-semibold tabular-nums text-slate-900">{money(p.price)}</span>
@@ -130,6 +132,14 @@ export default function Shop({ params }: { params: Promise<{ slug: string }> }) 
       <Login open={loginOpen} onClose={() => setLoginOpen(false)} auth={auth} />
       <Modal open={!!alt} onClose={() => setAlt(null)} title={`Alternatives to ${alt?.p.brand || ""}`}>
         {alt?.list.length ? alt.list.map((a) => <div key={a._id} className="flex items-center justify-between border-b border-slate-100 py-2 text-sm"><span className="flex items-center gap-3"><ProductImage product={a} size="sm" className="h-10 w-10 shrink-0 rounded border border-slate-200" /><span>{a.brand} {a.strength}<div className="text-xs text-slate-500">{a.requiresRx ? "Prescription needed" : "No prescription"}</div></span></span><span className="flex items-center gap-2">{money(a.price)}{a.stock > 0 ? <Button size="sm" onClick={() => { add({ ...a, inStock: true, taxRate: 0 }); setAlt(null); }}>Add</Button> : <Badge tone="red">Out of stock</Badge>}</span></div>) : <p className="text-sm text-slate-600">No substitutes available at this branch. Try another branch from the selector above.</p>}
+      </Modal>
+      <Modal open={!!howTo} onClose={() => setHowTo(null)} title="How to take">
+        {howTo && <div className="space-y-4 text-sm">
+          <div className="flex items-center gap-3"><ProductImage product={howTo} size="sm" className="h-14 w-14 shrink-0 rounded-md border border-slate-200" /><div><div className="font-semibold text-slate-900">{shortName(howTo)}</div><div className="text-slate-500">{howTo.generic}</div></div></div>
+          {howTo.directions && <div><div className="text-xs font-medium uppercase tracking-wide text-slate-500">Usual directions</div><p className="mt-1 text-slate-800">{howTo.directions}</p></div>}
+          {howTo.warnings && <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">{howTo.warnings}</div>}
+          <p className="text-xs text-slate-500">Always read the pack leaflet. For children, during pregnancy, or if you take other medicines, ask our pharmacist first. You can message them after you order.</p>
+        </div>}
       </Modal>
       <Modal open={!!placed} onClose={() => setPlaced(null)} title="Order placed">
         {placed && <div className="space-y-2 text-sm"><p className="text-lg font-semibold text-emerald-700">Thank you!</p><p>Your order <b>{placed.orderNo}</b> is {placed.status === "pending_review" ? "waiting for the pharmacist to review your prescription" : "received"}. We will send updates by SMS.</p><Link href={`/shop/${slug}/orders`} className="inline-block rounded-lg bg-brand-700 px-4 py-2 font-medium text-white">Track my order</Link></div>}
@@ -226,6 +236,7 @@ function Cart({ open, onClose, cart, setCart, branch, shop, slug, auth, needLogi
                       <div className="font-medium leading-snug text-slate-900">{shortName(i.product)}</div>
                       <div className="text-xs text-slate-500">{money(i.product.price)} each</div>
                       {i.product.requiresRx && <div className="mt-0.5 flex items-center gap-1 text-xs text-amber-700"><FileText className="h-3 w-3" />Prescription needed</div>}
+                      {i.product.directions && <div className="mt-0.5 text-xs text-slate-500">{i.product.directions}</div>}
                     </div>
                     <div className="flex items-center rounded-md border border-slate-300"><button aria-label="One less" onClick={() => (i.qty === 1 ? setCart(cart.filter((x: Item) => x !== i)) : set(i.product._id, -1))} className="p-1.5 text-slate-600 hover:bg-slate-50">{i.qty === 1 ? <Trash2 className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}</button><span className="w-6 text-center tabular-nums">{i.qty}</span><button aria-label="One more" onClick={() => set(i.product._id, 1)} className="p-1.5 text-slate-600 hover:bg-slate-50"><Plus className="h-3.5 w-3.5" /></button></div>
                     <div className="hidden w-20 text-right font-medium tabular-nums sm:block">{money(i.product.price * i.qty)}</div>

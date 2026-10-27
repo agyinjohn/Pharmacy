@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { useOffline } from "@/lib/offlineContext";
 import { loadRxSnapshot, newClientId, queueOp, saveRxSnapshot } from "@/lib/offline";
 import { useLoad } from "@/lib/useLoad";
+import { DirectionInputs, DirectionLists } from "@/components/Directions";
 import { ApiError, dateFmt, dateTime } from "@/lib/api";
 import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, StatusBadge, Table, Td, Textarea, Ref, Tabs, humanize } from "@/components/ui";
 
@@ -29,7 +30,8 @@ export default function Prescriptions() {
   const [status, setStatus] = useState("");
   const list = useLoad(() => call(`/prescriptions${status ? `?status=${status}` : ""}`), [status, branch?._id]);
   const [open, setOpenRaw] = useState<any>(null);
-  const setOpen = (v: any) => { setOpenRaw(v); setRemind(true); setDeclining(false); }; const [declining, setDeclining] = useState(false); const [err, setErr] = useState<string | null>(null);
+  const setOpen = (v: any) => { setOpenRaw(v); setRemind(true); setDeclining(false); setDirs(v ? Object.fromEntries(v.items.map((i: any) => [i.product, { dose: i.dose || "", frequency: i.frequency || "", duration: i.duration || "" }])) : {}); };
+  const [dirs, setDirs] = useState<Record<string, { dose: string; frequency: string; duration: string }>>({}); const [declining, setDeclining] = useState(false); const [err, setErr] = useState<string | null>(null);
   const [warn, setWarn] = useState<string[] | null>(null); const [overrideReason, setOverrideReason] = useState("");
   const [labels, setLabels] = useState<any[] | null>(null);
   const [remind, setRemind] = useState(true); const [madeReminders, setMadeReminders] = useState<any[]>([]);
@@ -49,7 +51,16 @@ export default function Prescriptions() {
   };
   const afterAct = async () => { await load(open._id); list.reload(); };
 
-  const verify = async (override = false) => { const r = await act("verify", override ? { override: true, overrideReason } : {}); if (r) { setWarn(null); setOverrideReason(""); afterAct(); } };
+  // The pharmacist types the prescriber's directions; they feed the labels and dose reminders.
+  const editDirs = !!open && pharmacist && open.status === "pending";
+  const dirsChanged = editDirs && open.items.some((i: any) => ["dose", "frequency", "duration"].some((k) => (dirs[i.product] as any)?.[k] !== (i[k] || "")));
+  const missingDirs = editDirs && open.items.some((i: any) => !dirs[i.product]?.dose.trim() || !dirs[i.product]?.frequency.trim());
+  const saveDirs = async () => {
+    setErr(null);
+    try { const r = await call(`/prescriptions/${open._id}/directions`, { method: "PATCH", body: { items: Object.entries(dirs).map(([product, d]) => ({ product, ...d })) } }); setOpenRaw(r); return true; }
+    catch (e: any) { setErr(e.message); return false; }
+  };
+  const verify = async (override = false) => { if (dirsChanged && !(await saveDirs())) return; const r = await act("verify", override ? { override: true, overrideReason } : {}); if (r) { setWarn(null); setOverrideReason(""); afterAct(); } };
   const reject = async () => { if (await act("reject", { reason })) { setReason(""); setDeclining(false); afterAct(); } };
   const addNote = async () => { if (await act("notes", { type: "counselling", text: note })) { setNote(""); afterAct(); } };
   const sight = async () => { if (await act("paper-sighted")) afterAct(); };
@@ -122,6 +133,14 @@ export default function Prescriptions() {
               </div>
             </div>
 
+            {editDirs && <DirectionLists />}
+            {editDirs && (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-slate-600">{open.image ? "Read the directions on the prescription below and type them in for each medicine." : "Check the directions match the paper prescription."} They print on the label and set the patient's dose reminders.</p>
+                {dirsChanged && <Button size="sm" variant="outline" onClick={saveDirs}>Save directions</Button>}
+              </div>
+            )}
+            {editDirs && open.image && <a href={open.image} target="_blank" rel="noreferrer" className="block"><img src={open.image} alt="Uploaded prescription" className="max-h-80 w-full rounded-lg border bg-slate-50 object-contain" /></a>}
             <div className="overflow-hidden rounded-lg border border-slate-200">
               {open.items.map((i: any, k: number) => {
                 const total = i.qty * (1 + open.refillsAllowed);
@@ -129,7 +148,9 @@ export default function Prescriptions() {
                   <div key={k} className="flex items-center gap-4 border-b border-slate-100 px-4 py-3 last:border-0">
                     <div className="min-w-0 flex-1">
                       <div className="font-medium text-slate-900">{i.name}</div>
-                      <div className="text-slate-600">{[i.dose, i.frequency, i.duration].filter(Boolean).join(" · ")}</div>
+                      {editDirs ? (
+                        <div className="mt-2 grid gap-2 sm:grid-cols-3"><DirectionInputs value={dirs[i.product] || {}} onChange={(patch) => setDirs({ ...dirs, [i.product]: { ...dirs[i.product], ...patch } })} /></div>
+                      ) : <div className="text-slate-600">{[i.dose, i.frequency, i.duration].filter(Boolean).join(" · ") || <span className="text-amber-700">No directions entered</span>}</div>}
                     </div>
                     <div className="w-16 text-right"><div className="font-medium tabular-nums">{i.qty}</div><div className="text-xs text-slate-500">per fill</div></div>
                     <div className="w-32">
@@ -141,7 +162,7 @@ export default function Prescriptions() {
               })}
             </div>
             {open.refillsAllowed > 0 && <p className="-mt-3 text-xs text-slate-500">Includes {open.refillsAllowed} refill{open.refillsAllowed > 1 ? "s" : ""}.</p>}
-            {open.image && <img src={open.image} alt="Prescription scan" className="max-h-64 rounded-lg border" />}
+            {open.image && !editDirs && <img src={open.image} alt="Prescription scan" className="max-h-64 rounded-lg border" />}
             {open.allergyWarnings?.length > 0 && !warn && <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">{open.allergyWarnings.map((w: string) => <div key={w} className="flex gap-2"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{w}</div>)}</div>}
 
             {warn && (
@@ -172,7 +193,7 @@ export default function Prescriptions() {
                 {open.status === "pending" && !declining && !warn && (
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <Button variant="ghost" onClick={() => setDeclining(true)}>Decline…</Button>
-                    <Button onClick={() => verify()}><CheckCircle2 className="h-4 w-4" />Verify prescription</Button>
+                    <span className="flex flex-wrap items-center justify-end gap-3">{missingDirs && <span className="text-xs text-slate-500">Enter the dose and how often for each medicine first</span>}<Button disabled={missingDirs} onClick={() => verify()}><CheckCircle2 className="h-4 w-4" />Verify prescription</Button></span>
                   </div>
                 )}
                 {open.status === "pending" && declining && (
@@ -199,7 +220,7 @@ export default function Prescriptions() {
         <div className="grid gap-3 sm:grid-cols-2">
           {labels?.map((l, i) => (
             <div key={i} className="rounded-lg border-2 border-slate-800 p-3 text-sm">
-              <div className="font-bold">{l.patient}</div><div className="text-base font-semibold">{l.drug}</div><div>{l.directions}</div>
+              <div className="font-bold">{l.patient}</div><div className="text-base font-semibold">{l.drug}</div><div>{l.directions}</div>{l.warnings && <div className="mt-1 text-xs font-medium">{l.warnings}</div>}
               <div className="mt-1 text-xs">Qty {l.qty} · Batch {l.batch} · Exp {dateFmt(l.expiry)} · {dateFmt(l.date)} · {l.rxNo}</div>
             </div>
           ))}
@@ -220,14 +241,16 @@ export default function Prescriptions() {
               <Input label="Prescriber address" value={form.prescriber.address} onChange={(e) => setForm({ ...form, prescriber: { ...form.prescriber, address: e.target.value } })} />
             </div>
             <div className="space-y-2">
-              <div className="text-sm font-medium">Medicines</div>
+              <div className="text-sm font-medium">Medicines <span className="font-normal text-slate-500">and the prescriber's directions</span></div>
+              <DirectionLists />
               {form.items.map((it: any, i: number) => (
-                <div key={i} className="grid gap-2 sm:grid-cols-6">
-                  <div className="sm:col-span-2"><Select value={it.product} onChange={(e) => setItem(i, "product", e.target.value)} aria-label="Medicine"><option value="">Medicine...</option>{(products.data || []).filter((p: any) => p.legalStatus !== "otc").map((p: any) => <option key={p._id} value={p._id}>{p.brand} {p.strength}</option>)}</Select></div>
-                  <Input placeholder="Dose" value={it.dose} onChange={(e) => setItem(i, "dose", e.target.value)} />
-                  <Input placeholder="Frequency" value={it.frequency} onChange={(e) => setItem(i, "frequency", e.target.value)} />
-                  <Input placeholder="Duration" value={it.duration} onChange={(e) => setItem(i, "duration", e.target.value)} />
-                  <Input placeholder="Qty" type="number" value={it.qty} onChange={(e) => setItem(i, "qty", e.target.value)} />
+                <div key={i} className="rounded-lg border border-slate-200 p-3">
+                  <div className="grid gap-2 sm:grid-cols-6">
+                    <div className="sm:col-span-2"><Select value={it.product} onChange={(e) => setItem(i, "product", e.target.value)} aria-label="Medicine"><option value="">Medicine...</option>{(products.data || []).filter((p: any) => p.legalStatus !== "otc").map((p: any) => <option key={p._id} value={p._id}>{p.brand} {p.strength}</option>)}</Select></div>
+                    <DirectionInputs value={it} onChange={(patch) => setForm({ ...form, items: form.items.map((x: any, n: number) => (n === i ? { ...x, ...patch } : x)) })} />
+                    <Input placeholder="Qty" aria-label="Quantity" type="number" value={it.qty} onChange={(e) => setItem(i, "qty", e.target.value)} />
+                  </div>
+                  {(() => { const p = (products.data || []).find((x: any) => x._id === it.product); return p?.directions ? <p className="mt-2 text-xs text-slate-500"><span className="font-medium text-slate-600">Usual directions:</span> {p.directions} The prescriber's directions come first.</p> : null; })()}
                 </div>
               ))}
               <Button size="sm" variant="ghost" onClick={() => setForm({ ...form, items: [...form.items, { product: "", dose: "", frequency: "", duration: "", qty: "" }] })}>+ Add medicine</Button>

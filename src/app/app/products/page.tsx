@@ -8,7 +8,7 @@ import { parseCsv } from "@/lib/csv";
 import { downloadExport } from "@/lib/download";
 import { resizeImage } from "@/lib/image";
 import ProductImage from "@/components/ProductImage";
-import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner } from "@/components/ui";
+import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, Textarea } from "@/components/ui";
 
 const LEGAL: Record<string, [string, any, string]> = {
   otc: ["OTC", "slate", "Anyone can buy it, on the shelf or online."],
@@ -148,6 +148,15 @@ export default function Products() {
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 {edit.legalStatus === "controlled" && <Select label="Control class" value={edit.controlClass} onChange={(e) => set({ controlClass: e.target.value })}><option value="standard">Standard</option><option value="strict">Strictest (no refills)</option></Select>}
                 <Select label="Storage" value={edit.storage} onChange={(e) => set({ storage: e.target.value })}><option value="ambient">Room temperature</option><option value="cold_chain">Cold chain (2–8°C)</option></Select>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">How to take it</h3>
+              <p className="mb-3 text-xs text-slate-500">{edit.legalStatus === "prescription_only" || edit.legalStatus === "controlled" ? "Optional for prescription medicines: the prescriber's directions are used on each label. Anything here shows to staff as a guide." : "Written by your pharmacist. Shown at the till, printed on the receipt and shown in the online store."}</p>
+              <div className="grid gap-3">
+                <Textarea label="Usual directions" rows={2} placeholder="e.g. Adults: 2 tablets every 4 to 6 hours when needed. No more than 8 tablets in 24 hours." value={edit.directions ?? ""} onChange={(e) => set({ directions: e.target.value })} />
+                <Textarea label="Warnings and advice (optional)" rows={2} placeholder="e.g. Take after food. May cause drowsiness. Avoid alcohol." value={edit.warnings ?? ""} onChange={(e) => set({ warnings: e.target.value })} />
               </div>
             </section>
 

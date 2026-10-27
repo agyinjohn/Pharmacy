@@ -11,7 +11,7 @@ export function Receipt({ sale, branch }: { sale: any; branch: any }) {
       {sale.offline && <div className="font-bold">** RECORDED OFFLINE - PENDING SYNC **</div>}
       <div>Receipt {sale.receiptNo}</div><div>{dateTime(sale.createdAt)}</div><div>Served by {sale.cashier?.name}</div>
       <hr className="my-2 border-dashed" />
-      {sale.items.map((i: any, k: number) => (<div key={k}><div>{i.name}</div><div className="flex justify-between"><span>{i.qty} x {i.unitPrice.toFixed(2)}{i.tax ? ` (tax ${i.tax.toFixed(2)})` : ""}</span><span>{i.lineTotal.toFixed(2)}</span></div></div>))}
+      {sale.items.map((i: any, k: number) => (<div key={k}><div>{i.name}</div><div className="flex justify-between"><span>{i.qty} x {i.unitPrice.toFixed(2)}{i.tax ? ` (tax ${i.tax.toFixed(2)})` : ""}</span><span>{i.lineTotal.toFixed(2)}</span></div>{i.directions && <div className="mb-1 text-[10px] leading-snug">{i.directions}</div>}</div>))}
       <hr className="my-2 border-dashed" />
       <div className="flex justify-between"><span>Subtotal</span><span>{sale.subtotal.toFixed(2)}</span></div>
       {sale.discount > 0 && <div className="flex justify-between"><span>Discount</span><span>-{sale.discount.toFixed(2)}</span></div>}
