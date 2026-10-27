@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import { FilePlus2, Printer } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FilePlus2, Pill, Printer, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useOffline } from "@/lib/offlineContext";
 import { loadRxSnapshot, newClientId, queueOp, saveRxSnapshot } from "@/lib/offline";
 import { useLoad } from "@/lib/useLoad";
 import { ApiError, dateFmt, dateTime } from "@/lib/api";
-import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, StatusBadge, Table, Td, Textarea, Ref, Tabs } from "@/components/ui";
+import { Badge, Button, Card, ErrorNote, Input, Modal, PageHeader, Select, Spinner, StatusBadge, Table, Td, Textarea, Ref, Tabs, humanize } from "@/components/ui";
 
 const emptyRx = { patientName: "", customer: "", prescriber: { name: "", regNo: "", facility: "", address: "" }, items: [{ product: "", dose: "", frequency: "", duration: "", qty: "" }], refillsAllowed: 0, paperOriginalSeen: false, image: "", insurance: { scheme: "", memberNo: "", copay: "" } };
 
@@ -29,7 +29,7 @@ export default function Prescriptions() {
   const [status, setStatus] = useState("");
   const list = useLoad(() => call(`/prescriptions${status ? `?status=${status}` : ""}`), [status, branch?._id]);
   const [open, setOpenRaw] = useState<any>(null);
-  const setOpen = (v: any) => { setOpenRaw(v); setRemind(true); }; const [err, setErr] = useState<string | null>(null);
+  const setOpen = (v: any) => { setOpenRaw(v); setRemind(true); setDeclining(false); }; const [declining, setDeclining] = useState(false); const [err, setErr] = useState<string | null>(null);
   const [warn, setWarn] = useState<string[] | null>(null); const [overrideReason, setOverrideReason] = useState("");
   const [labels, setLabels] = useState<any[] | null>(null);
   const [remind, setRemind] = useState(true); const [madeReminders, setMadeReminders] = useState<any[]>([]);
@@ -50,7 +50,7 @@ export default function Prescriptions() {
   const afterAct = async () => { await load(open._id); list.reload(); };
 
   const verify = async (override = false) => { const r = await act("verify", override ? { override: true, overrideReason } : {}); if (r) { setWarn(null); setOverrideReason(""); afterAct(); } };
-  const reject = async () => { if (await act("reject", { reason })) { setReason(""); afterAct(); } };
+  const reject = async () => { if (await act("reject", { reason })) { setReason(""); setDeclining(false); afterAct(); } };
   const addNote = async () => { if (await act("notes", { type: "counselling", text: note })) { setNote(""); afterAct(); } };
   const sight = async () => { if (await act("paper-sighted")) afterAct(); };
   const dispense = async () => { const r = await act("dispense", { reminders: remind }); if (r) { setLabels(r.labels); setMadeReminders(r.reminders || []); afterAct(); } };
@@ -99,43 +99,95 @@ export default function Prescriptions() {
       <Modal open={!!open} onClose={() => setOpen(null)} title={`Prescription ${open?.rxNo || ""}`} wide>
         {open && (
           <div className="space-y-5 text-sm">
-            <div className="flex flex-wrap items-center gap-3"><StatusBadge s={open.status} />{open.hasControlled && <Badge tone="red">Controlled drug</Badge>}{open.paperOriginalSeen ? <Badge tone="green">Paper original sighted</Badge> : open.hasControlled && <Badge tone="amber">Paper original not yet sighted</Badge>}</div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div><div className="text-xs text-slate-500">Patient</div><div className="font-medium">{open.patientName}</div>{open.customer?.allergies?.length > 0 && <Badge tone="red">Allergies: {open.customer.allergies.join(", ")}</Badge>}</div>
-              <div><div className="text-xs text-slate-500">Prescriber</div><div className="font-medium">{open.prescriber?.name}</div><div className="text-xs text-slate-500">{open.prescriber?.regNo} {open.prescriber?.facility}</div></div>
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge s={open.status} />
+              {open.hasControlled && <Badge tone="red">Controlled drug</Badge>}
+              {open.paperOriginalSeen ? <Badge tone="green">Paper original sighted</Badge> : open.hasControlled && <Badge tone="amber">Paper original not yet sighted</Badge>}
+              <span className="ml-auto text-xs text-slate-500">{open.source === "online" ? "Uploaded online" : open.source === "prescriber" ? "Sent by prescriber" : "Walk-in"} · {dateTime(open.createdAt)}</span>
             </div>
-            <Table head={["Medicine", "Directions", "Qty", "Dispensed"]}>
-              {open.items.map((i: any, k: number) => <tr key={k}><Td className="font-medium">{i.name}</Td><Td>{[i.dose, i.frequency, i.duration].filter(Boolean).join(", ")}</Td><Td>{i.qty}</Td><Td>{i.dispensedQty} / {i.qty * (1 + open.refillsAllowed)}</Td></tr>)}
-            </Table>
-            {open.refillsAllowed > 0 && <p className="text-slate-600">Refills allowed: {open.refillsAllowed}</p>}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-slate-200 p-3">
+                <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Patient</div>
+                <div className="mt-1 text-base font-semibold text-slate-900">{open.patientName}</div>
+                {open.customer?.phone && <div className="text-xs text-slate-500">{open.customer.phone}</div>}
+                {open.customer?.allergies?.length > 0
+                  ? <div className="mt-2 flex items-center gap-1.5 text-red-700"><AlertTriangle className="h-4 w-4 shrink-0" /><span>Allergic to <b>{open.customer.allergies.join(", ")}</b></span></div>
+                  : open.customer && <div className="mt-2 text-xs text-slate-500">No known allergies recorded</div>}
+              </div>
+              <div className="rounded-lg border border-slate-200 p-3">
+                <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Prescriber</div>
+                <div className="mt-1 text-base font-semibold text-slate-900">{open.prescriber?.name}</div>
+                <div className="text-xs text-slate-500">{[open.prescriber?.regNo, open.prescriber?.facility].filter(Boolean).join(" · ")}</div>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-lg border border-slate-200">
+              {open.items.map((i: any, k: number) => {
+                const total = i.qty * (1 + open.refillsAllowed);
+                return (
+                  <div key={k} className="flex items-center gap-4 border-b border-slate-100 px-4 py-3 last:border-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-slate-900">{i.name}</div>
+                      <div className="text-slate-600">{[i.dose, i.frequency, i.duration].filter(Boolean).join(" · ")}</div>
+                    </div>
+                    <div className="w-16 text-right"><div className="font-medium tabular-nums">{i.qty}</div><div className="text-xs text-slate-500">per fill</div></div>
+                    <div className="w-32">
+                      <div className="flex justify-between text-xs text-slate-500"><span>Supplied</span><span className="tabular-nums">{i.dispensedQty} of {total}</span></div>
+                      <div className="mt-1 h-1.5 rounded-full bg-slate-100"><div className="h-1.5 rounded-full bg-brand-600" style={{ width: `${Math.min(100, (i.dispensedQty / total) * 100)}%` }} /></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {open.refillsAllowed > 0 && <p className="-mt-3 text-xs text-slate-500">Includes {open.refillsAllowed} refill{open.refillsAllowed > 1 ? "s" : ""}.</p>}
             {open.image && <img src={open.image} alt="Prescription scan" className="max-h-64 rounded-lg border" />}
-            {open.allergyWarnings?.length > 0 && <div className="rounded-lg bg-amber-50 p-3 text-amber-900">{open.allergyWarnings.map((w: string) => <div key={w}>⚠ {w}</div>)}</div>}
+            {open.allergyWarnings?.length > 0 && !warn && <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">{open.allergyWarnings.map((w: string) => <div key={w} className="flex gap-2"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{w}</div>)}</div>}
 
             {warn && (
               <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                <div className="font-semibold text-red-900">Clinical warnings</div>
-                {warn.map((w) => <div key={w} className="mt-1 text-red-800">⚠ {w}</div>)}
-                <Textarea className="mt-3" rows={2} placeholder="Reason for proceeding (required to override)" value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} />
-                <div className="mt-2 flex gap-2"><Button variant="danger" disabled={!overrideReason.trim()} onClick={() => verify(true)}>Override and verify</Button><Button variant="outline" onClick={() => setWarn(null)}>Cancel</Button></div>
+                <div className="flex items-center gap-2 font-semibold text-red-900"><ShieldAlert className="h-5 w-5" />Check before verifying</div>
+                <ul className="mt-2 space-y-1 text-red-800">{warn.map((w) => <li key={w}>{w.replace(/^ALLERGY:\s*/i, "Allergy: ")}</li>)}</ul>
+                <p className="mt-3 text-xs text-red-800">To continue anyway, record your clinical reason. It is saved with your name in the audit log.</p>
+                <Textarea className="mt-1.5 bg-white" rows={2} placeholder="e.g. Confirmed with prescriber, patient tolerated amoxicillin before" value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} />
+                <div className="mt-3 flex gap-2"><Button variant="outline" onClick={() => setWarn(null)}>Don't verify</Button><Button variant="danger" disabled={!overrideReason.trim()} onClick={() => verify(true)}>Override and verify</Button></div>
               </div>
             )}
 
-            {open.notes?.length > 0 && <div><div className="mb-1 font-semibold">Pharmacist notes</div>{open.notes.map((n: any, i: number) => <div key={i} className="border-l-2 border-brand-200 pl-3 text-slate-700"><span className="text-xs text-slate-500">{dateTime(n.at)} · {n.by?.name} · {n.type}</span><div>{n.text}</div></div>)}</div>}
-            {open.verifiedBy && <p className="text-slate-600">Verified by {open.verifiedBy.name} on {dateTime(open.verifiedAt)}</p>}
-            {open.rejectedReason && <p className="text-red-700">Rejected: {open.rejectedReason}</p>}
+            {open.verifiedBy && <p className="flex items-center gap-1.5 text-slate-600"><CheckCircle2 className="h-4 w-4 text-brand-600" />Verified by {open.verifiedBy.name} on {dateTime(open.verifiedAt)}</p>}
+            {open.rejectedReason && <p className="text-red-700">Declined: {open.rejectedReason}</p>}
+
+            {(open.notes?.length > 0 || pharmacist) && (
+              <div>
+                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Pharmacist notes</div>
+                {open.notes?.map((n: any, i: number) => <div key={i} className="mb-2 border-l-2 border-brand-200 pl-3"><div className="text-xs text-slate-500">{dateTime(n.at)} · {n.by?.name} · {humanize(n.type)}</div><div className="text-slate-700">{n.text}</div></div>)}
+                {pharmacist && <div className="flex gap-2"><div className="flex-1"><Input placeholder="Add a counselling or intervention note" value={note} onChange={(e) => setNote(e.target.value)} /></div><Button variant="outline" disabled={!note.trim()} onClick={addNote}>Add note</Button></div>}
+              </div>
+            )}
             <ErrorNote error={err} />
 
-            {pharmacist && (
-              <div className="space-y-3 border-t border-slate-200 pt-4">
-                {open.hasControlled && !open.paperOriginalSeen && open.status === "pending" && <Button variant="outline" onClick={sight}>Record signed paper original sighted</Button>}
-                {open.status === "pending" && (
-                  <div className="flex flex-wrap items-end gap-2">
-                    <Button onClick={() => verify()}>Verify prescription</Button>
-                    <div className="flex flex-1 gap-2"><Input placeholder="Reason for declining" value={reason} onChange={(e) => setReason(e.target.value)} /><Button variant="danger" disabled={!reason.trim()} onClick={reject}>Decline</Button></div>
+            {pharmacist && !(warn && open.status === "pending") && (
+              <div className="-mx-5 -mb-5 border-t border-slate-200 bg-slate-50 px-5 py-4">
+                {open.hasControlled && !open.paperOriginalSeen && open.status === "pending" && <Button className="mb-3" variant="outline" onClick={sight}>Record signed paper original sighted</Button>}
+                {open.status === "pending" && !declining && !warn && (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Button variant="ghost" onClick={() => setDeclining(true)}>Decline…</Button>
+                    <Button onClick={() => verify()}><CheckCircle2 className="h-4 w-4" />Verify prescription</Button>
                   </div>
                 )}
-                {["verified", "partial"].includes(open.status) && <div className="flex flex-wrap items-center gap-3"><Button onClick={dispense}>Dispense at {branch?.name}</Button>{open.customer && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={remind} onChange={(e) => setRemind(e.target.checked)} />Set up dose reminders for the patient</label>}</div>}
-                <div className="flex gap-2"><Input placeholder="Add counselling / intervention note" value={note} onChange={(e) => setNote(e.target.value)} /><Button variant="outline" disabled={!note.trim()} onClick={addNote}>Add note</Button></div>
+                {open.status === "pending" && declining && (
+                  <div className="flex flex-wrap gap-2">
+                    <div className="flex-1"><Input autoFocus placeholder="Reason for declining (shared with the patient)" value={reason} onChange={(e) => setReason(e.target.value)} /></div>
+                    <Button variant="outline" onClick={() => { setDeclining(false); setReason(""); }}>Cancel</Button>
+                    <Button variant="danger" disabled={!reason.trim()} onClick={reject}>Decline</Button>
+                  </div>
+                )}
+                {["verified", "partial"].includes(open.status) && (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    {open.customer ? <label className="flex items-center gap-2 text-slate-700"><input type="checkbox" className="h-4 w-4 accent-brand-700" checked={remind} onChange={(e) => setRemind(e.target.checked)} />Send the patient dose reminders by SMS</label> : <span />}
+                    <Button onClick={dispense}><Pill className="h-4 w-4" />Dispense at {branch?.name}</Button>
+                  </div>
+                )}
               </div>
             )}
             {!pharmacist && open.status === "pending" && <p className="text-slate-500">Waiting for a pharmacist to verify.</p>}
