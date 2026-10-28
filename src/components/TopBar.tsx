@@ -132,6 +132,7 @@ export default function TopBar({ title, menuOpen, onMenu, roleLabel, onSignOut }
                 <div className="truncate text-xs text-slate-500">{user?.email}</div>
                 <div className="mt-1 text-xs text-slate-500">{roleLabel} · {org?.name}</div>
               </div>
+              {org?.slug && <a href={`/site/${org.slug}`} target="_blank" rel="noreferrer" onClick={close} className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><Globe className="h-4 w-4 text-slate-400" /><span className="flex-1">View website</span><ExternalLink className="h-3.5 w-3.5 text-slate-400" /></a>}
               {org?.slug && <a href={`/shop/${org.slug}`} target="_blank" rel="noreferrer" onClick={close} className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><ShoppingBag className="h-4 w-4 text-slate-400" /><span className="flex-1">View online store</span><ExternalLink className="h-3.5 w-3.5 text-slate-400" /></a>}
               <Link href="/app/settings" onClick={close} className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><Cog className="h-4 w-4 text-slate-400" />Settings and security</Link>
               <button onClick={() => { close(); onSignOut(); }} className="flex w-full items-center gap-2 border-t border-slate-100 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><LogOut className="h-4 w-4 text-slate-400" />Sign out</button>
