@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, FilePlus2, Pill, Printer, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/lib/auth";
@@ -225,7 +226,7 @@ export default function Prescriptions() {
             </div>
           ))}
         </div>
-        {madeReminders.length > 0 && <div className="no-print mt-4 rounded-lg bg-brand-50 p-3 text-sm text-brand-900"><b>Dose reminders set up:</b> {madeReminders.map((m) => `${m.medicine} at ${m.times.join(", ")}${m.endDate ? ` until ${dateFmt(m.endDate)}` : ""}`).join("; ")}. The patient can pause or stop them in the online store. Change them on the customer record.</div>}
+        {madeReminders.length > 0 && <div className="no-print mt-4 rounded-lg bg-brand-50 p-3 text-sm text-brand-900"><b>Dose reminders set up:</b> {madeReminders.map((m) => `${m.medicine} at ${m.times.join(", ")}${m.endDate ? ` until ${dateFmt(m.endDate)}` : ""}`).join("; ")}. The patient can pause or stop them in the online store. Change them on the <Link href="/app/reminders" className="underline underline-offset-2">Reminders</Link> page.</div>}
         <Button className="no-print mt-4" onClick={() => window.print()}><Printer className="h-4 w-4" />Print labels</Button>
       </Modal>
 
