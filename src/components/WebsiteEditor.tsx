@@ -98,7 +98,7 @@ export default function WebsiteEditor() {
 
       <Section title="Top of the page" desc="The first thing visitors see. Say who you are and why they should choose you.">
         <div className="max-w-xl space-y-4">
-          <Input label="Headline" maxLength={90} placeholder={defaultHeadline(name)} value={w.headline || ""} onChange={(e) => upd({ headline: e.target.value })} />
+          <Input label="Headline" maxLength={90} placeholder={defaultHeadline(name)} value={w.headline || ""} onChange={(e) => upd({ headline: e.target.value })} hint="Put *stars* around the words to set in coloured italics, e.g. Caring for Ghana’s *families*." />
           <Textarea label="Short introduction" maxLength={300} rows={3} placeholder={defaultIntro(name, branches.data?.length || 1)} value={w.intro || ""} onChange={(e) => upd({ intro: e.target.value })} />
           <ImageField label="Banner photo" kind="banner" wide value={w.heroImageUrl} onChange={(u) => upd({ heroImageUrl: u })} hint="A bright photo of your shop front or team. Landscape works best." {...fieldProps} />
         </div>
