@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle, Check, Plus, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
@@ -23,6 +23,8 @@ export default function Customers() {
     catch (e: any) { setErr(e.message); }
   };
   const open = async (id: string) => setView(await call(`/customers/${id}`)); // logged as a record view on the server
+  // Other pages link here with ?open=<customer id> to show that record straight away.
+  useEffect(() => { const id = new URLSearchParams(window.location.search).get("open"); if (id) open(id).catch(() => {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [stmt, setStmt] = useState<any>(null);
   const statement = async (id: string) => setStmt(await call(`/customers/${id}/statement`));
   const payment = async (c: any) => { const a = prompt(`Payment received from ${c.name} (balance ${money(c.balance)})`); if (a) { await call(`/customers/${c._id}/payments`, { body: { amount: Number(a) } }); list.reload(); setView(null); } };

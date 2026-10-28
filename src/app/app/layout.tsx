@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, ShoppingCart, ClipboardCheck, Package, Boxes, Truck, ArrowLeftRight, ShieldAlert, Users, BarChart3,
-  UserCog, ScrollText, LogOut, Globe, Store, PackageCheck, Settings as Cog, Upload, Tag,
+  UserCog, ScrollText, LogOut, Globe, Store, PackageCheck, Settings as Cog, Upload, Tag, BellRing,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import TopBar from "@/components/TopBar";
@@ -23,6 +23,7 @@ const NAV: { href: string; label: string; icon: any; roles: string[] | "all"; gr
   { href: "/app/customers", label: "Customers", icon: Users, roles: ["cashier", "pharmacist", "technician", "branch_manager", "accountant", "auditor"], group: "Sell" },
   { href: "/app/promotions", label: "Promotions", icon: Tag, roles: ["branch_manager", "cashier", "pharmacist"], group: "Sell" },
   { href: "/app/prescriptions", label: "Prescriptions", icon: ClipboardCheck, roles: ["pharmacist", "technician", "branch_manager", "cashier"], group: "Pharmacy" },
+  { href: "/app/reminders", label: "Reminders", icon: BellRing, roles: ["pharmacist", "branch_manager"], group: "Pharmacy" },
   { href: "/app/register", label: "Controlled drugs", icon: ShieldAlert, roles: ["pharmacist", "branch_manager", "auditor"], group: "Pharmacy" },
   { href: "/app/inventory", label: "Inventory", icon: Boxes, roles: ["store_officer", "branch_manager", "pharmacist", "technician", "accountant", "auditor"], group: "Stock" },
   { href: "/app/products", label: "Products", icon: Package, roles: ["store_officer", "branch_manager", "pharmacist", "technician", "accountant", "auditor", "cashier"], group: "Stock" },
