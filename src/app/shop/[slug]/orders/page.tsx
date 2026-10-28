@@ -129,11 +129,11 @@ export default function MyOrders({ params }: { params: Promise<{ slug: string }>
   const erasure = async () => { if (!confirm("Ask the pharmacy to erase your personal data? Records they must keep by law stay for the required period.")) return; try { const r = await auth.call("/portal/me/erasure-request", { body: {} }); alert(r.message); } catch (e: any) { setErr(e.message); } };
 
   return (
-    <div className="min-h-screen bg-[#fafafa]">
-      <ShopHeader shop={shop.data} slug={slug} right={<Link href={`/shop/${slug}`} className="text-sm font-medium text-brand-700">Continue shopping</Link>} />
+    <div className="site grain min-h-screen">
+      <ShopHeader shop={shop.data} slug={slug} right={<Link href={`/shop/${slug}`} className="btn-arrow inline-flex items-center gap-1.5 rounded-full border border-black/20 px-4 py-2 text-sm font-medium hover:border-black/50">Continue shopping</Link>} />
       <main className="mx-auto max-w-3xl px-4 py-8">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
-          <div><h1 className="text-2xl font-semibold tracking-tight">My orders</h1>{auth.customer?.name && <p className="text-sm text-slate-500">Signed in as {auth.customer.name}</p>}</div>
+          <div><h1 className="serif text-4xl sm:text-5xl">My <span className="serif-i">orders</span></h1>{auth.customer?.name && <p className="text-sm text-slate-500">Signed in as {auth.customer.name}</p>}</div>
           {auth.customer?.loyaltyPoints > 0 && <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-right"><div className="text-lg font-semibold leading-tight tabular-nums">{auth.customer.loyaltyPoints}</div><div className="text-xs text-slate-500">loyalty points</div></div>}
         </div>
         {!auth.ready ? <Spinner /> : !auth.token ? <p className="text-slate-600">Please <Link href={`/shop/${slug}`} className="text-brand-700 underline">sign in</Link> from the store page to see your orders.</p> : (

@@ -7,6 +7,7 @@ import { useLoad } from "@/lib/useLoad";
 import { imageSrc } from "@/lib/image";
 import { DEFAULT_COLOR, DEFAULT_SERVICES, defaultHeadline, defaultIntro, telLink, textOn, whatsappLink } from "@/lib/website";
 import ProductImage from "@/components/ProductImage";
+import { Badge, Capsule, Headline, Leaf, Star, useReveal } from "@/components/SiteArt";
 
 const Img = ({ url, alt, className }: { url?: string; alt: string; className?: string }) => {
   const src = imageSrc(url);
@@ -17,58 +18,6 @@ const Facebook = (p: { className?: string }) => <svg viewBox="0 0 24 24" fill="c
 const Instagram = (p: { className?: string }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={p.className} aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" /></svg>;
 const TikTok = (p: { className?: string }) => <svg viewBox="0 0 24 24" fill="currentColor" className={p.className} aria-hidden="true"><path d="M16.6 5.8A4.3 4.3 0 0 1 15.5 3h-3.1v12.4a2.6 2.6 0 1 1-2.6-2.6c.3 0 .5 0 .8.1V9.7a5.7 5.7 0 1 0 4.9 5.7V9a7.4 7.4 0 0 0 4.3 1.4V7.3a4.3 4.3 0 0 1-3.2-1.5Z" /></svg>;
 const XLogo = (p: { className?: string }) => <svg viewBox="0 0 24 24" fill="currentColor" className={p.className} aria-hidden="true"><path d="M17.8 3h3l-6.6 7.6L22 21h-6.1l-4.8-6.2L5.6 21h-3l7-8.1L2 3h6.2l4.3 5.7L17.8 3Zm-1 16.2h1.7L7.3 4.7H5.5l11.3 14.5Z" /></svg>;
-
-// Hand-drawn marks used as decoration: a four-point star, a capsule and a leaf.
-const Star = ({ className, style }: { className?: string; style?: React.CSSProperties }) => <svg viewBox="0 0 40 40" className={className} style={style} aria-hidden="true"><path d="M20 2c1.2 9.6 4.6 13.4 18 18-13.4 4.6-16.8 8.4-18 18-1.2-9.6-4.6-13.4-18-18C15.4 15.4 18.8 11.6 20 2Z" fill="currentColor" /></svg>;
-const Capsule = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
-  <svg viewBox="0 0 120 60" className={`draw ${className || ""}`} style={style} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><rect x="4" y="8" width="112" height="44" rx="22" /><line x1="60" y1="8" x2="60" y2="52" /><path d="M20 22c3-5 8-7 14-7" /></svg>
-);
-const Leaf = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
-  <svg viewBox="0 0 80 100" className={`draw ${className || ""}`} style={style} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M40 96C40 60 40 40 40 8" /><path d="M40 8C66 22 74 52 40 80C6 52 14 22 40 8Z" /><path d="M40 38l14-10M40 54l16-10M40 54L24 44M40 38L27 30" /></svg>
-);
-
-// Round text that turns slowly, with a cross in the middle.
-function Badge({ text, color, on }: { text: string; color: string; on: string }) {
-  const t = `${text} • `.repeat(Math.max(1, Math.round(40 / (text.length + 3))));
-  return (
-    <div className="relative grid h-28 w-28 place-items-center rounded-full sm:h-36 sm:w-36" style={{ background: color, color: on }}>
-      <svg viewBox="0 0 200 200" className="spin absolute inset-0 h-full w-full" aria-hidden="true">
-        <defs><path id="badge-circle" d="M100,100 m-74,0 a74,74 0 1,1 148,0 a74,74 0 1,1 -148,0" /></defs>
-        <text fill="currentColor" style={{ fontSize: 14, textTransform: "uppercase", fontWeight: 500 }}><textPath href="#badge-circle" textLength="462" lengthAdjust="spacing">{t}</textPath></text>
-      </svg>
-      <svg viewBox="0 0 24 24" className="h-7 w-7" fill="currentColor" aria-hidden="true"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z" /></svg>
-    </div>
-  );
-}
-
-// Headline with each word rising in turn. Words wrapped in *stars* are set in italic colour;
-// without stars, the last two words are.
-function Headline({ text, color }: { text: string; color: string }) {
-  const marked = /\*[^*]+\*/.test(text);
-  const words = text.replace(/\*/g, " * ").split(/\s+/).filter(Boolean);
-  const plain = words.filter((w) => w !== "*");
-  const out: React.ReactNode[] = [];
-  let italic = false; let i = 0;
-  for (const w of words) {
-    if (w === "*") { italic = !italic; continue; }
-    const em = marked ? italic : plain.length > 3 && i >= plain.length - 2;
-    out.push(<span key={i} className="word"><span className={em ? "serif-i" : ""} style={{ ["--d" as any]: `${0.15 + i * 0.08}s`, color: em ? color : undefined }}>{w}</span></span>, " ");
-    i++;
-  }
-  return <>{out}</>;
-}
-
-// Adds .in to every .reveal / .reveal-img element as it scrolls into view.
-function useReveal(ready: boolean) {
-  useEffect(() => {
-    if (!ready) return;
-    const els = document.querySelectorAll(".site .reveal, .site .reveal-img");
-    if (!("IntersectionObserver" in window)) { els.forEach((e) => e.classList.add("in")); return; }
-    const io = new IntersectionObserver((entries) => entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
-    els.forEach((e) => io.observe(e));
-    return () => io.disconnect();
-  }, [ready]);
-}
 
 // A pharmacy's own public website, written and styled by the pharmacy in Settings → Website.
 export default function PharmacySite({ params }: { params: Promise<{ slug: string }> }) {

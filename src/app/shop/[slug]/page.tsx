@@ -6,7 +6,8 @@ import { api, money, store } from "@/lib/api";
 import { useShopAuth } from "@/lib/shop";
 import { useLoad } from "@/lib/useLoad";
 import { Badge, Button, Card, ErrorNote, Input, Modal, Select, Spinner } from "@/components/ui";
-import { ShopFooter, ShopHeader } from "@/components/ShopChrome";
+import { ShopFooter, ShopHeader, shopColors } from "@/components/ShopChrome";
+import { Capsule, Headline, Star, useReveal } from "@/components/SiteArt";
 import ProductImage from "@/components/ProductImage";
 
 type Item = { product: any; qty: number };
@@ -38,6 +39,8 @@ export default function Shop({ params }: { params: Promise<{ slug: string }> }) 
   // Prices and stock depend on the branch, so changing branch rebuilds the cart from the live catalogue.
   useEffect(() => { setCart((c) => c.filter((i) => !i.product.branchId || i.product.branchId === branchId)); }, [branchId]);
 
+  useReveal(!!shop.data);
+
   const add = (p: any) => setCart((c) => { const i = c.findIndex((x) => x.product._id === p._id); const prod = { ...p, branchId }; if (i >= 0) return c.map((x, k) => (k === i ? { ...x, qty: Math.min(p.stock, x.qty + 1) } : x)); return [...c, { product: prod, qty: 1 }]; });
   const showAlt = async (p: any) => setAlt({ p, list: await api(`/portal/${slug}/products/${p._id}/alternatives?branch=${branchId}`) });
   const count = cart.reduce((s, i) => s + i.qty, 0);
@@ -49,84 +52,130 @@ export default function Shop({ params }: { params: Promise<{ slug: string }> }) 
   const categories: string[] = (cats.data?.categories || []).filter((c: string) => !symptoms.includes(c));
   const chip = (c: string, label = c) => <button key={c} onClick={() => setCat(c)} className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm ${cat === c ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"}`}>{label}</button>;
 
-  if (shop.error) return <div className="grid min-h-screen place-items-center p-6 text-center"><div><h1 className="text-xl font-semibold">Pharmacy not found</h1><p className="mt-2 text-slate-600">Check the link, or <Link href="/" className="text-brand-700 underline">visit PharmaOne</Link>.</p></div></div>;
-  if (!shop.data) return <Spinner />;
+  if (shop.error) return <div className="site grid min-h-screen place-items-center p-6 text-center"><div><h1 className="serif text-3xl">Pharmacy not found</h1><p className="mt-2 text-[var(--muted)]">Check the link, or <Link href="/" className="underline">visit PharmaOne</Link>.</p></div></div>;
+  if (!shop.data) return <div className="site grid min-h-screen place-items-center"><Star className="spin h-8 w-8 text-[var(--muted)]" /></div>;
+
+  const { color, on } = shopColors(shop.data);
+  const tint = `${color}14`;
+  const pill = (active: boolean) => `whitespace-nowrap rounded-full border px-4 py-1.5 text-sm transition ${active ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]" : "border-black/15 hover:border-black/40"}`;
+  const step = (i: number, t: string, d: string) => (
+    <div key={t} className="reveal border-t border-black/15 pt-6" style={{ ["--d" as any]: `${i * 0.1}s` }}>
+      <div className="serif-i text-5xl" style={{ color }}>{String(i + 1).padStart(2, "0")}</div>
+      <h3 className="serif mt-4 text-2xl">{t}</h3><p className="mt-2 text-[var(--muted)]">{d}</p>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[#fafafa] pb-20 sm:pb-0">
+    <div className="site grain min-h-screen overflow-x-hidden pb-24 sm:pb-0">
       <ShopHeader shop={shop.data} slug={slug} right={<>
-        {auth.customer ? <><Link href={`/shop/${slug}/orders`} className="rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100">My orders</Link><button onClick={auth.logout} className="hidden text-sm text-slate-500 hover:text-slate-800 sm:block">Sign out</button></>
-          : <button onClick={() => setLoginOpen(true)} className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"><User className="h-4 w-4" /><span className="hidden sm:inline">Sign in</span></button>}
-        <Button size="sm" onClick={() => setCartOpen(true)} aria-label={`Cart, ${count} items`}><ShoppingBag className="h-4 w-4" /><span className="hidden sm:inline">Cart</span>{count > 0 && <span className="rounded-full bg-white/25 px-1.5 text-xs tabular-nums">{count}</span>}</Button>
+        {auth.customer ? <><Link href={`/shop/${slug}/orders`} className="uline px-2 text-sm">My orders</Link><button onClick={auth.logout} className="hidden px-2 text-sm text-[var(--muted)] hover:text-[var(--ink)] sm:block">Sign out</button></>
+          : <button onClick={() => setLoginOpen(true)} className="flex items-center gap-1.5 px-2 text-sm"><User className="h-4 w-4" /><span className="uline hidden sm:inline">Sign in</span></button>}
+        <button onClick={() => setCartOpen(true)} aria-label={`Cart, ${count} items`} className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition hover:opacity-90" style={{ background: color, color: on }}><ShoppingBag className="h-4 w-4" /><span className="hidden sm:inline">Basket</span>{count > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-white/25 px-1 text-xs tabular-nums">{count}</span>}</button>
       </>} />
 
-      <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-8 sm:py-10 lg:grid-cols-[1fr_340px]">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Your pharmacy, delivered.</h1>
-            <p className="mt-2 max-w-xl text-slate-600">Order medicines and health products from {shop.data.name}. Pay by mobile money, and a registered pharmacist checks every prescription.</p>
-            <div className="relative mt-6 max-w-xl"><Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search medicines or symptoms, e.g. malaria" className="w-full rounded-lg border border-slate-300 bg-white py-3 pl-12 pr-4 text-slate-900 shadow-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-900/10" aria-label="Search medicines" /></div>
-            <ul className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
-              <li className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-brand-700" />Licensed pharmacy</li>
-              <li className="flex items-center gap-2"><Smartphone className="h-4 w-4 text-brand-700" />Mobile money{shop.data.codEnabled ? " or pay on delivery" : ""}</li>
-              <li className="flex items-center gap-2"><Truck className="h-4 w-4 text-brand-700" />Delivery or pick up in store</li>
-            </ul>
+      {/* Opening: headline, search, and the branch you're ordering from on a prescription-slip card */}
+      <section className="relative mx-auto grid max-w-7xl gap-12 px-4 pb-14 pt-10 sm:px-8 sm:pt-16 lg:grid-cols-[1.25fr_1fr] lg:gap-16">
+        <Star className="float absolute right-[40%] top-8 hidden h-5 w-5 lg:block" style={{ color, ["--d" as any]: "1.2s" }} />
+        <div>
+          <div className="fade-in flex items-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-[var(--muted)]"><span className="h-px w-10 bg-current opacity-40" />Online pharmacy</div>
+          <h1 className="serif mt-5 text-[2.6rem] leading-[1.02] sm:text-6xl lg:text-7xl"><Headline text="Your pharmacy, *delivered* to your door." color={color} /></h1>
+          <p className="fade-in mt-6 max-w-lg text-lg leading-relaxed text-[var(--muted)]" style={{ ["--d" as any]: ".8s" }}>Order medicines and health products from {shop.data.name}. Pay by mobile money{shop.data.codEnabled ? " or on delivery" : ""}, and a registered pharmacist checks every prescription.</p>
+          <div className="fade-in relative mt-8 max-w-xl" style={{ ["--d" as any]: "1s" }}>
+            <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--muted)]" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a medicine or symptom, e.g. malaria" aria-label="Search medicines" className="w-full rounded-full border border-black/15 bg-white/80 py-4 pl-14 pr-5 text-base shadow-[0_10px_30px_-18px_rgba(29,26,22,.4)] outline-none transition focus:border-black/40 focus:bg-white" />
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-            <label className="text-xs font-medium uppercase tracking-wide text-slate-500" htmlFor="branch">Ordering from</label>
-            <select id="branch" value={branchId} onChange={(e) => setBranchId(e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900">{shop.data.branches.map((b: any) => <option key={b._id} value={b._id}>{b.name}{b.online ? "" : " (not taking online orders)"}</option>)}</select>
-            {branch && <div className="mt-3 space-y-1.5 text-sm text-slate-600">
-              <div className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />{branch.address}</div>
-              {branch.openingHours && <div className="flex gap-2"><Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />{branch.openingHours}</div>}
-              <div className="flex gap-2"><Truck className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />Delivery fee agreed with you by phone</div>
-            </div>}
-            {branch && !branch.online && <p className="mt-3 rounded-md bg-amber-50 p-2 text-sm text-amber-900">This branch isn't taking online orders right now. Choose another branch.</p>}
+        </div>
+
+        <div className="fade-in relative mx-auto w-full max-w-sm self-start lg:mt-6" style={{ ["--d" as any]: ".4s" }}>
+          <div className="absolute inset-0 translate-x-3 translate-y-3 rotate-2 rounded-[26px]" style={{ background: tint }} />
+          <div className="relative -rotate-1 rounded-[26px] border border-black/10 bg-white p-6 shadow-[0_24px_50px_-30px_rgba(29,26,22,.45)]">
+            <div className="flex items-start justify-between gap-3">
+              <div><div className="serif-i text-3xl" style={{ color }}>Rx</div><div className="mt-1 text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">Ordering from</div></div>
+              <span className="rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.15em]" style={{ borderColor: `${color}66`, color }}>{branch?.online ? "Open for orders" : "Not taking orders"}</span>
+            </div>
+            <select id="branch" aria-label="Branch" value={branchId} onChange={(e) => setBranchId(e.target.value)} className="serif mt-2 w-full cursor-pointer appearance-none rounded-none border-0 border-b border-dashed border-black/25 bg-transparent py-2 pr-6 text-2xl outline-none" style={{ backgroundImage: "linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%)", backgroundPosition: "calc(100% - 10px) 55%, calc(100% - 5px) 55%", backgroundSize: "5px 5px", backgroundRepeat: "no-repeat" }}>
+              {shop.data.branches.map((b: any) => <option key={b._id} value={b._id}>{b.name}{b.online ? "" : " (not taking online orders)"}</option>)}
+            </select>
+            {branch && <dl className="mt-4 space-y-2.5 text-sm">
+              <div className="flex gap-3"><dt className="w-16 shrink-0 text-[var(--muted)]">Where</dt><dd>{branch.address}</dd></div>
+              {branch.openingHours && <div className="flex gap-3"><dt className="w-16 shrink-0 text-[var(--muted)]">Hours</dt><dd>{branch.openingHours}</dd></div>}
+              <div className="flex gap-3"><dt className="w-16 shrink-0 text-[var(--muted)]">Delivery</dt><dd>Fee agreed with you by phone, or pick up free</dd></div>
+            </dl>}
+            {branch && !branch.online && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">This branch isn&apos;t taking online orders right now. Choose another branch.</p>}
+            <div className="mt-5 flex items-center gap-2 border-t border-dashed border-black/20 pt-4 text-xs text-[var(--muted)]"><ShieldCheck className="h-4 w-4" style={{ color }} />Every prescription checked by a registered pharmacist</div>
           </div>
         </div>
       </section>
 
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        {symptoms.length > 0 && <div className="mb-3"><div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Shop by need</div><div className="flex gap-2 overflow-x-auto pb-1">{symptoms.map((c) => chip(c))}</div></div>}
-        <div className="mb-5"><div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Categories</div><div className="flex gap-2 overflow-x-auto pb-1">{chip("all", "Everything")}{categories.map((c) => chip(c))}</div></div>
-        {products.data && <div className="mb-3 text-sm text-slate-500">{products.data.length} product{products.data.length === 1 ? "" : "s"}{cat !== "all" ? ` in ${cat}` : ""}{q ? ` matching “${q}”` : ""}</div>}
-        {products.loading && !products.data ? <Spinner /> : (
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-            {(products.data || []).map((p: any) => {
+      <main className="mx-auto max-w-7xl px-4 sm:px-8">
+        {/* Shop by need: an index of symptoms set in italics */}
+        {symptoms.length > 0 && (
+          <div className="border-y border-black/10 py-5">
+            <div className="no-scrollbar flex items-center gap-x-1 overflow-x-auto">
+              <span className="mr-3 shrink-0 text-xs font-medium uppercase tracking-[0.2em] text-[var(--muted)]">Shop by need</span>
+              {symptoms.map((c, i) => (
+                <span key={c} className="flex shrink-0 items-center">
+                  {i > 0 && <Star className="mx-2 h-2.5 w-2.5 opacity-40" />}
+                  <button onClick={() => setCat(cat === c ? "all" : c)} className={`serif-i whitespace-nowrap text-2xl transition ${cat === c ? "" : "opacity-60 hover:opacity-100"}`} style={cat === c ? { color, textDecoration: "underline", textUnderlineOffset: 6, textDecorationThickness: 1 } : undefined}>{c}</button>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="no-scrollbar mt-6 flex gap-2 overflow-x-auto pb-1">
+          <button onClick={() => setCat("all")} className={pill(cat === "all")}>Everything</button>
+          {categories.map((c) => <button key={c} onClick={() => setCat(c)} className={pill(cat === c)}>{c}</button>)}
+        </div>
+
+        <div className="mt-10 flex flex-wrap items-baseline justify-between gap-3">
+          <h2 className="serif text-3xl sm:text-4xl">{q ? <>Results for <span className="serif-i" style={{ color }}>{q}</span></> : cat !== "all" ? <span className="serif-i" style={{ color }}>{cat}</span> : <>On our <span className="serif-i" style={{ color }}>shelves</span></>}</h2>
+          {products.data && <span className="text-sm text-[var(--muted)]">{products.data.length} product{products.data.length === 1 ? "" : "s"}</span>}
+        </div>
+
+        {products.loading && !products.data ? <div className="grid place-items-center py-20"><Star className="spin h-7 w-7 text-[var(--muted)]" /></div> : (
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
+            {(products.data || []).map((p: any, i: number) => {
               const n = inCart(p._id);
               return (
-                <div key={p._id} className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition hover:border-slate-300 hover:shadow-sm">
-                  <div className="relative"><ProductImage product={p} className="aspect-[4/3] w-full" />{p.promo && <span className="absolute left-2 top-2 rounded-md bg-white/95 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm">{p.promo}</span>}</div>
-                  <div className="flex flex-1 flex-col border-t border-slate-100 p-3 sm:p-4">
-                    <h3 className="text-sm font-medium leading-snug text-slate-900 sm:text-base">{shortName(p)}</h3>
-                    <p className="mt-0.5 text-xs text-slate-500">{[p.generic, p.packSize].filter(Boolean).join(" · ")}</p>
-                    <div className="mt-2 space-y-0.5 text-xs">
-                      {p.requiresRx && <div className="flex items-center gap-1 text-amber-700"><FileText className="h-3.5 w-3.5" />Prescription needed</div>}
-                      {!p.inStock ? <div className="text-red-700">Out of stock here</div> : p.stock < 10 ? <div className="text-amber-700">Only {p.stock} left</div> : null}
-                      {(p.directions || p.warnings) && <button onClick={() => setHowTo(p)} className="flex items-center gap-1 text-slate-600 underline-offset-2 hover:underline"><Info className="h-3.5 w-3.5" />How to take</button>}
+                <div key={p._id} className="fade-in group flex flex-col overflow-hidden rounded-[22px] border border-black/5 bg-white transition duration-500 hover:-translate-y-1 hover:shadow-[0_22px_40px_-26px_rgba(29,26,22,.45)]" style={{ ["--d" as any]: `${Math.min(i, 12) * 0.04}s` }}>
+                  <div className="relative overflow-hidden"><ProductImage product={p} className="aspect-[4/3] w-full transition duration-700 group-hover:scale-[1.04]" />{p.promo && <span className="serif-i absolute left-3 top-3 rounded-full px-3 py-1 text-sm" style={{ background: color, color: on }}>{p.promo}</span>}</div>
+                  <div className="flex flex-1 flex-col p-4">
+                    <h3 className="serif text-lg leading-snug sm:text-xl">{shortName(p)}</h3>
+                    <p className="mt-0.5 text-xs text-[var(--muted)]">{[p.generic, p.packSize].filter(Boolean).join(" · ")}</p>
+                    <div className="mt-2 space-y-1 text-xs">
+                      {p.requiresRx && <div className="flex items-center gap-1 text-amber-800"><FileText className="h-3.5 w-3.5" />Prescription needed</div>}
+                      {!p.inStock ? <div className="text-red-700">Out of stock here</div> : p.stock < 10 ? <div className="text-amber-800">Only {p.stock} left</div> : null}
+                      {(p.directions || p.warnings) && <button onClick={() => setHowTo(p)} className="flex items-center gap-1 text-[var(--muted)] hover:text-[var(--ink)]"><Info className="h-3.5 w-3.5" /><span className="uline">How to take</span></button>}
                     </div>
-                    <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
-                      <span className="whitespace-nowrap font-semibold tabular-nums text-slate-900">{money(p.price)}</span>
-                      {!p.inStock ? <button onClick={() => showAlt(p)} className="text-xs font-medium text-slate-700 underline underline-offset-2">Alternatives</button>
-                        : n > 0 ? <div className="flex items-center rounded-md border border-slate-300"><button aria-label="One less" onClick={() => bump(p, -1)} className="p-1.5 text-slate-600 hover:bg-slate-50"><Minus className="h-3.5 w-3.5" /></button><span className="w-6 text-center text-sm tabular-nums">{n}</span><button aria-label="One more" onClick={() => bump(p, 1)} disabled={n >= p.stock} className="p-1.5 text-slate-600 hover:bg-slate-50 disabled:opacity-40"><Plus className="h-3.5 w-3.5" /></button></div>
-                        : <Button size="sm" onClick={() => add(p)} disabled={!branch?.online}><Plus className="h-3.5 w-3.5" />Add</Button>}
+                    <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
+                      <span className="serif whitespace-nowrap text-xl tabular-nums">{money(p.price)}</span>
+                      {!p.inStock ? <button onClick={() => showAlt(p)} className="uline text-xs font-medium">Alternatives</button>
+                        : n > 0 ? <div className="flex items-center rounded-full border border-black/20"><button aria-label="One less" onClick={() => bump(p, -1)} className="rounded-l-full p-2 hover:bg-black/5"><Minus className="h-3.5 w-3.5" /></button><span className="w-6 text-center text-sm tabular-nums">{n}</span><button aria-label="One more" onClick={() => bump(p, 1)} disabled={n >= p.stock} className="rounded-r-full p-2 hover:bg-black/5 disabled:opacity-40"><Plus className="h-3.5 w-3.5" /></button></div>
+                        : <button onClick={() => add(p)} disabled={!branch?.online} className="inline-flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium transition hover:opacity-90 disabled:opacity-40" style={{ background: color, color: on }}><Plus className="h-3.5 w-3.5" />Add</button>}
                     </div>
                   </div>
                 </div>
               );
             })}
-            {products.data && !products.data.length && <p className="col-span-full py-12 text-center text-slate-500">Nothing found. Try another name, or a symptom like “cough”.</p>}
+            {products.data && !products.data.length && <div className="col-span-full py-16 text-center"><p className="serif text-2xl">Nothing on the shelf by that name.</p><p className="mt-2 text-[var(--muted)]">Try another spelling, or a symptom like “cough”.</p></div>}
           </div>
         )}
 
-        <section className="mt-12 grid gap-4 sm:grid-cols-3">
-          {[[Search, "1. Find your medicines", "Search by name or symptom, or add the medicines on your prescription."], [FileText, "2. Upload your prescription", "Take a photo of it at checkout. A pharmacist checks it before anything is packed."], [Truck, "3. Pay and receive", "Pay by mobile money, then track your rider or pick up in store."]].map(([Icon, t, d]: any) => (
-            <div key={t} className="rounded-xl border border-slate-200 bg-white p-5"><Icon className="h-5 w-5 text-brand-700" /><div className="mt-3 font-medium text-slate-900">{t}</div><p className="mt-1 text-sm text-slate-600">{d}</p></div>
-          ))}
+        {/* How ordering works */}
+        <section className="relative mt-24">
+          <Capsule className="float absolute -top-6 right-2 hidden w-28 sm:block" style={{ color, ["--r" as any]: "-18deg" }} />
+          <div className="reveal flex items-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-[var(--muted)]"><span className="h-px w-10 bg-current opacity-40" />How it works</div>
+          <h2 className="reveal serif mt-5 max-w-2xl text-4xl sm:text-5xl">Three steps, and a <span className="serif-i" style={{ color }}>pharmacist</span> checks every one</h2>
+          <div className="mt-12 grid gap-10 sm:grid-cols-3">
+            {step(0, "Find your medicines", "Search by name or symptom, or add the medicines on your prescription.")}
+            {step(1, "Upload your prescription", "Take a photo of it at checkout. A pharmacist checks it before anything is packed.")}
+            {step(2, "Pay and receive", "Pay by mobile money, then we bring it to you or keep it ready to collect.")}
+          </div>
         </section>
       </main>
       <ShopFooter shop={shop.data} branch={branch} />
 
-      {count > 0 && <button onClick={() => setCartOpen(true)} className="fixed inset-x-3 bottom-3 z-30 flex items-center justify-between rounded-xl bg-brand-800 px-4 py-3 text-white shadow-lg sm:hidden"><span className="flex items-center gap-2 text-sm font-medium"><ShoppingBag className="h-4 w-4" />View cart · {count} item{count === 1 ? "" : "s"}</span><span className="font-semibold tabular-nums">{money(cartTotal)}</span></button>}
+      {count > 0 && <button onClick={() => setCartOpen(true)} className="fixed inset-x-3 bottom-3 z-30 flex items-center justify-between rounded-full px-5 py-3.5 shadow-lg sm:hidden" style={{ background: color, color: on }}><span className="flex items-center gap-2 text-sm font-medium"><ShoppingBag className="h-4 w-4" />View basket · {count} item{count === 1 ? "" : "s"}</span><span className="serif text-lg tabular-nums">{money(cartTotal)}</span></button>}
 
       <Cart open={cartOpen} onClose={() => setCartOpen(false)} cart={cart} setCart={setCart} branch={branch} shop={shop.data} slug={slug} auth={auth} needLogin={() => { setCartOpen(false); setLoginOpen(true); }} onPlaced={(o: any) => { setPlaced(o); setCart([]); setCartOpen(false); }} />
       <Login open={loginOpen} onClose={() => setLoginOpen(false)} auth={auth} />
@@ -216,7 +265,8 @@ function Cart({ open, onClose, cart, setCart, branch, shop, slug, auth, needLogi
   ];
   const missing = !branch?.online ? "This branch isn't taking online orders" : needsRx && !image && !refill ? "Add your prescription" : fulfilment === "delivery" && !line.trim() ? "Add your street address" : null;
   const items = cart.reduce((s: number, i: Item) => s + i.qty, 0);
-  const head = (n: number, t: string) => <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900"><span className="grid h-5 w-5 place-items-center rounded-full bg-slate-900 text-[11px] font-medium text-white">{n}</span>{t}</h3>;
+  const { color, on } = shopColors(shop);
+  const head = (n: number, t: string) => <h3 className="mb-3 flex items-baseline gap-3"><span className="serif-i text-2xl" style={{ color }}>{String(n).padStart(2, "0")}</span><span className="serif text-xl text-slate-900">{t}</span></h3>;
   const pick = (on: boolean) => `flex flex-col justify-start rounded-lg border p-3 text-left text-sm transition ${on ? "border-slate-900 ring-1 ring-slate-900" : "border-slate-200 hover:border-slate-300"}`;
 
   return (
@@ -283,16 +333,16 @@ function Cart({ open, onClose, cart, setCart, branch, shop, slug, auth, needLogi
 
           <aside className="lg:sticky lg:top-0 lg:self-start">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
-              <h3 className="font-semibold text-slate-900">Order summary</h3>
+              <h3 className="serif text-xl text-slate-900">Order summary</h3>
               <div className="mt-3 space-y-1.5">
                 <div className="flex justify-between"><span className="text-slate-600">Items ({items})</span><span className="tabular-nums">{money(subtotal)}</span></div>
                 {tax > 0 && <div className="flex justify-between"><span className="text-slate-600">Tax</span><span className="tabular-nums">{money(tax)}</span></div>}
                 {cart.some((i: Item) => i.product.promo) && <div className="flex justify-between text-emerald-700"><span>Promotions</span><span>taken off when you order</span></div>}
                 <div className="flex justify-between"><span className="text-slate-600">{fulfilment === "delivery" ? "Delivery" : "Pick up"}</span><span>{fulfilment === "pickup" ? "Free" : <span className="text-slate-500">Agreed by phone</span>}</span></div>
               </div>
-              <div className="mt-3 flex items-baseline justify-between border-t border-slate-200 pt-3"><span className="font-semibold">{fulfilment === "delivery" ? "Total for items" : "Total"}</span><span className="text-xl font-semibold tabular-nums">{money(total)}</span></div>
+              <div className="mt-3 flex items-baseline justify-between border-t border-slate-200 pt-3"><span className="font-semibold">{fulfilment === "delivery" ? "Total for items" : "Total"}</span><span className="serif text-2xl tabular-nums">{money(total)}</span></div>
               <ErrorNote error={err} />
-              <Button className="mt-4 w-full" size="lg" loading={busy} disabled={!!missing && !!auth.token} onClick={place}>{auth.token ? (method === "cod" ? "Place order" : `Pay ${money(total)}`) : "Sign in to order"}</Button>
+              <Button className="mt-4 w-full rounded-full" size="lg" style={{ background: color, color: on }} loading={busy} disabled={!!missing && !!auth.token} onClick={place}>{auth.token ? (method === "cod" ? "Place order" : `Pay ${money(total)}`) : "Sign in to order"}</Button>
               {missing && auth.token && <p className="mt-2 text-center text-xs text-slate-500">{missing} to continue.</p>}
               <ul className="mt-4 space-y-1.5 border-t border-slate-200 pt-3 text-xs text-slate-500">
                 <li className="flex gap-2"><ShieldCheck className="h-3.5 w-3.5 shrink-0 text-brand-700" />Licensed pharmacy, pharmacist-checked</li>
