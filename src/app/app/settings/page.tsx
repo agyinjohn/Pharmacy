@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { Check, Copy, ExternalLink, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLoad } from "@/lib/useLoad";
 import { dateTime } from "@/lib/api";
@@ -21,6 +21,25 @@ export default function Settings() {
       {tab === "privacy" && <Privacy call={call} />}
       {tab === "notif" && <Notifications call={call} />}
       {tab === "dp" && <DataProtection />}
+    </div>
+  );
+}
+
+// The public address of this pharmacy's online store, to open or share with customers.
+function StoreAddress({ slug }: { slug?: string }) {
+  const [copied, setCopied] = useState(false);
+  if (!slug) return null;
+  const url = `${typeof window === "undefined" ? "" : window.location.origin}/shop/${slug}`;
+  const copy = async () => { try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { window.prompt("Copy your store address", url); } };
+  return (
+    <div className="rounded-lg border border-slate-200 p-3">
+      <div className="text-sm font-medium text-slate-800">Store address</div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <code className="min-w-0 flex-1 truncate rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700 ring-1 ring-slate-200">{url}</code>
+        <Button size="sm" variant="outline" onClick={copy}>{copied ? <><Check className="h-4 w-4" />Copied</> : <><Copy className="h-4 w-4" />Copy</>}</Button>
+        <a href={`/shop/${slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"><ExternalLink className="h-4 w-4" />Open</a>
+      </div>
+      <p className="mt-2 text-xs text-slate-500">Share it on WhatsApp, social media or your receipts. Only branches set to take online orders appear, and only products in stock there.</p>
     </div>
   );
 }
@@ -129,8 +148,11 @@ function Org({ call, org, refresh }: any) {
           <p className="text-xs text-slate-500">Only sent to patients who agreed to messages. The medicine name is included only if they also agreed to us holding health data.</p>
         </div>
       </Section>
-      <Section title="Online store" desc="How customers pay for online orders.">
-        <div className="max-w-xl"><Toggle label="Allow pay on delivery" hint="Riders collect cash or mobile money at the door." checked={!!f.codEnabled} onChange={(v) => upd({ codEnabled: v })} /></div>
+      <Section title="Online store" desc="Your store's web address and how customers pay for online orders.">
+        <div className="max-w-xl space-y-4">
+          <StoreAddress slug={org?.slug} />
+          <Toggle label="Allow pay on delivery" hint="Riders collect cash or mobile money at the door." checked={!!f.codEnabled} onChange={(v) => upd({ codEnabled: v })} />
+        </div>
       </Section>
       <Section title="Security and records" desc="Rules that apply to everyone in the business.">
         <div className="max-w-xl space-y-3">
