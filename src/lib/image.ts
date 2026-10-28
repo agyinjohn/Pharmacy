@@ -4,7 +4,8 @@ import { API } from "./api";
 export const imageSrc = (url?: string | null) => (!url ? null : url.startsWith("/") ? `${API}${url}` : url);
 
 // Shrinks a photo in the browser before upload (max 900px on the long side, JPEG) so files stay small.
-export function resizeImage(file: File, max = 900, quality = 0.85): Promise<string> {
+// Logos pass "image/png" to keep a transparent background.
+export function resizeImage(file: File, max = 900, quality = 0.85, type: "image/jpeg" | "image/png" = "image/jpeg"): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { reject(new Error("Choose a JPEG, PNG or WebP photo")); return; }
     const url = URL.createObjectURL(file);
@@ -14,10 +15,10 @@ export function resizeImage(file: File, max = 900, quality = 0.85): Promise<stri
       const c = document.createElement("canvas");
       c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
       const ctx = c.getContext("2d")!;
-      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height); // transparent PNGs get a white background
+      if (type === "image/jpeg") { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height); } // JPEG has no transparency: use white
       ctx.drawImage(img, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url);
-      resolve(c.toDataURL("image/jpeg", quality));
+      resolve(c.toDataURL(type, quality));
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Could not read that image")); };
     img.src = url;

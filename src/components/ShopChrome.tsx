@@ -2,16 +2,22 @@
 import Link from "next/link";
 import { MapPin, Phone, Clock, BadgeCheck } from "lucide-react";
 import { dateFmt } from "@/lib/api";
+import { imageSrc } from "@/lib/image";
 
 export function ShopHeader({ shop, slug, right }: { shop: any; slug: string; right?: React.ReactNode }) {
+  const logo = imageSrc(shop?.website?.logoUrl);
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
         <Link href={`/shop/${slug}`} className="flex min-w-0 items-center gap-2 font-semibold tracking-tight text-slate-900">
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-brand-800 text-white"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg></span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {logo ? <img src={logo} alt="" className="h-8 w-auto max-w-[96px] shrink-0 object-contain" /> : <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-brand-800 text-white"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg></span>}
           <span className="truncate">{shop?.name || "Pharmacy"}</span>
         </Link>
-        <div className="flex shrink-0 items-center gap-1 sm:gap-2">{right}</div>
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          {shop?.website?.published && <Link href={`/site/${slug}`} className="hidden rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 md:block">About us</Link>}
+          {right}
+        </div>
       </div>
     </header>
   );
