@@ -150,13 +150,15 @@ export default function POS() {
 
   return (
     <div className="flex flex-col lg:h-[calc(100vh-3.5rem)]">
-      {/* Top bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
-        <div className="flex items-baseline gap-3"><h1 className="text-lg font-semibold tracking-tight">Point of sale</h1><span className="text-sm text-slate-500">{branch.name}</span></div>
-        <div className="flex items-center gap-2">
+      {/* Shift bar (the page name and branch are in the app's top bar) */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-4 py-2 sm:px-6">
+        <div className="flex items-center gap-2 text-sm">
           {shift.data
-            ? <><span className="hidden items-center gap-1.5 rounded-md bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 ring-1 ring-slate-200 sm:flex"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Shift open since {dateTime(shift.data.openedAt).split(", ")[1] || dateTime(shift.data.openedAt)}</span><Button size="sm" variant="outline" onClick={() => setShiftModal("close")}>Close shift</Button></>
-            : <Button size="sm" onClick={() => setShiftModal("open")}>Open shift</Button>}
+            ? <><span className="h-2 w-2 rounded-full bg-emerald-500" /><span className="text-slate-700">Shift open since {dateTime(shift.data.openedAt).split(", ")[1] || dateTime(shift.data.openedAt)}</span><span className="hidden text-slate-400 sm:inline">· {user?.name}</span></>
+            : <><span className="h-2 w-2 rounded-full bg-slate-300" /><span className="text-slate-500">No shift open. Open one to start selling.</span></>}
+        </div>
+        <div className="flex items-center gap-2">
+          {shift.data ? <Button size="sm" variant="ghost" onClick={() => setShiftModal("close")}>Close shift</Button> : <Button size="sm" onClick={() => setShiftModal("open")}>Open shift</Button>}
           <Button size="sm" variant="outline" onClick={() => setHeldOpen(true)}><PlayCircle className="h-4 w-4" />Held{held.data?.length ? <span className="rounded bg-slate-900 px-1.5 text-[11px] text-white">{held.data.length}</span> : null}</Button>
         </div>
       </div>
