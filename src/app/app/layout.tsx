@@ -12,12 +12,13 @@ import { OfflineProvider } from "@/lib/offlineContext";
 import OfflineBanner from "@/components/OfflineBanner";
 
 const REPORTERS = ["branch_manager", "accountant", "auditor", "pharmacist", "store_officer"];
-const NAV: { href: string; label: string; icon: any; roles: string[] | "all"; group?: string }[] = [
+// exact: only these roles see it (the owner otherwise sees every item).
+const NAV: { href: string; label: string; icon: any; roles: string[] | "all"; group?: string; exact?: boolean }[] = [
   { href: "/app", label: "Dashboard", icon: LayoutDashboard, roles: REPORTERS },
   { href: "/app/pos", label: "Point of sale", icon: ShoppingCart, roles: ["cashier", "pharmacist", "branch_manager", "technician"], group: "Sell" },
   { href: "/app/sales", label: "Sales", icon: ScrollText, roles: ["cashier", "pharmacist", "branch_manager", "accountant", "auditor"], group: "Sell" },
   { href: "/app/orders", label: "Online orders", icon: Globe, roles: ["pharmacist", "technician", "branch_manager", "dispatcher", "accountant"], group: "Sell" },
-  { href: "/app/rider", label: "My deliveries", icon: Truck, roles: ["dispatcher"], group: "Sell" },
+  { href: "/app/rider", label: "My deliveries", icon: Truck, roles: ["dispatcher"], group: "Sell", exact: true },
   { href: "/app/customers", label: "Customers", icon: Users, roles: ["cashier", "pharmacist", "technician", "branch_manager", "accountant", "auditor"], group: "Sell" },
   { href: "/app/promotions", label: "Promotions", icon: Tag, roles: ["branch_manager", "cashier", "pharmacist"], group: "Sell" },
   { href: "/app/prescriptions", label: "Prescriptions", icon: ClipboardCheck, roles: ["pharmacist", "technician", "branch_manager", "cashier"], group: "Pharmacy" },
@@ -63,7 +64,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, branch?._id]);
 
-  const items = NAV.filter((n) => n.roles === "all" || can(...(n.roles as string[])));
+  const items = NAV.filter((n) => n.roles === "all" || (n.exact ? (n.roles as string[]).includes(user?.role || "") : can(...(n.roles as string[]))));
   useEffect(() => {
     if (user && path === "/app" && !can(...REPORTERS)) router.replace(HOME[user.role] || items[0]?.href || "/app/customers");
   }, [user, path, can, router, items]);

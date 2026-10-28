@@ -41,6 +41,8 @@ export default function POS() {
 
   const shift = useLoad(() => call("/shifts/current"), [branch?._id], !!branch);
   const held = useLoad(() => call("/sales/held"), [branch?._id, heldOpen], !!branch);
+  const since = shift.data?.openedAt || new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+  const recent = useLoad<any[]>(() => call(`/sales?limit=300&from=${encodeURIComponent(since)}`).catch(() => []), [branch?._id, since, receipt], !!branch && !shift.loading);
   const rxs = useLoad(() => call("/prescriptions?status=verified").then(async (a: any[]) => [...a, ...(await call("/prescriptions?status=partial"))]).catch(() => []), [branch?._id], !!branch);
 
   useEffect(() => { barcodeRef.current?.focus(); }, [receipt]);
@@ -147,7 +149,7 @@ export default function POS() {
   const units = cart.reduce((s, l) => s + l.qty, 0);
 
   return (
-    <div className="flex min-h-[calc(100vh-57px)] flex-col lg:min-h-screen">
+    <div className="flex flex-col lg:h-[calc(100vh-3.5rem)]">
       {/* Top bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
         <div className="flex items-baseline gap-3"><h1 className="text-lg font-semibold tracking-tight">Point of sale</h1><span className="text-sm text-slate-500">{branch.name}</span></div>
@@ -159,9 +161,9 @@ export default function POS() {
         </div>
       </div>
 
-      <div className="grid flex-1 lg:grid-cols-[1fr_420px]">
+      <div className="grid flex-1 lg:min-h-0 lg:grid-cols-[1fr_400px]">
         {/* Products */}
-        <div className="min-w-0 px-4 py-5 sm:px-6">
+        <div className="min-w-0 px-4 py-5 sm:px-6 lg:overflow-y-auto">
           <form onSubmit={scan} className="relative">
             <ScanLine className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input ref={barcodeRef} value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" aria-label="Scan a barcode or search products"
@@ -199,7 +201,7 @@ export default function POS() {
         </div>
 
         {/* Basket */}
-        <aside id="basket" className="flex scroll-mt-14 flex-col border-t border-slate-200 bg-white lg:sticky lg:top-0 lg:h-[calc(100vh-57px)] lg:border-l lg:border-t-0">
+        <aside id="basket" className="flex scroll-mt-14 flex-col border-t border-slate-200 bg-white lg:min-h-0 lg:border-l lg:border-t-0">
           <div className="border-b border-slate-200 px-5 py-3">
             {customer ? (
               <div className="flex items-center justify-between gap-2 text-sm">
@@ -238,9 +240,46 @@ export default function POS() {
               );
             })}
             {!cart.length && (
-              <div className="flex h-full min-h-48 flex-col items-center justify-center text-center text-sm text-slate-500">
-                <ShoppingBasket className="h-8 w-8 text-slate-300" strokeWidth={1.5} />
-                <p className="mt-3">Scan a barcode or tap a product to start a sale</p>
+              <div className="flex min-h-full flex-col py-5">
+                <div className="flex flex-col items-center rounded-lg border border-dashed border-slate-200 px-6 py-8 text-center">
+                  <span className="grid h-12 w-12 place-items-center rounded-full bg-slate-100"><ShoppingBasket className="h-6 w-6 text-slate-500" strokeWidth={1.75} /></span>
+                  <p className="mt-3 font-medium text-slate-900">Ready for the next customer</p>
+                  <p className="mt-1 text-sm text-slate-500">Scan a barcode, type a medicine name, or tap a product to start a sale.</p>
+                </div>
+
+                {(held.data || []).length > 0 && (
+                  <section className="mt-6">
+                    <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">On hold</h3>
+                    <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                      {(held.data || []).slice(0, 3).map((h: any) => (
+                        <div key={h._id} className="flex items-center gap-3 px-3 py-2.5 text-sm">
+                          <PauseCircle className="h-4 w-4 shrink-0 text-slate-400" />
+                          <div className="min-w-0 flex-1"><div className="truncate text-slate-800">{h.items.map((i: any) => `${i.name} × ${i.qty}`).join(", ")}</div><div className="text-xs text-slate-500">Held {dateTime(h.createdAt)}</div></div>
+                          <Button size="sm" variant="outline" onClick={() => recall(h)}>Resume</Button>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                <section className="mt-6">
+                  <div className="mb-2 flex items-baseline justify-between">
+                    <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">{shift.data ? "This shift" : "Today"}</h3>
+                    {recent.data && <span className="text-xs text-slate-500">{recent.data.length} sale{recent.data.length === 1 ? "" : "s"} · <span className="font-medium text-slate-700 tabular-nums">{money(recent.data.reduce((a: number, x: any) => a + x.total, 0))}</span></span>}
+                  </div>
+                  {recent.data?.length ? (
+                    <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                      {recent.data.slice(0, 5).map((x: any) => (
+                        <button key={x._id} onClick={() => setReceipt(x)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-slate-50">
+                          <span className="w-12 shrink-0 text-xs tabular-nums text-slate-500">{new Date(x.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
+                          <span className="min-w-0 flex-1 truncate text-slate-800">{x.items[0]?.name}{x.items.length > 1 && <span className="text-slate-500"> +{x.items.length - 1}</span>}</span>
+                          <span className="font-medium tabular-nums">{money(x.total)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : <p className="rounded-lg bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">No sales yet.</p>}
+                  {recent.data && recent.data.length > 0 && <p className="mt-2 text-xs text-slate-400">Tap a sale to reprint its receipt.</p>}
+                </section>
               </div>
             )}
           </div>
@@ -298,7 +337,13 @@ export default function POS() {
               </div>
             </div>
           )}
-          {!cart.length && error && <div className="px-5 pb-4"><ErrorNote error={error} /></div>}
+          {!cart.length && (
+            <div className="space-y-3 border-t border-slate-200 px-5 py-4">
+              {error && <ErrorNote error={error} />}
+              <div className="flex items-baseline justify-between"><span className="font-medium text-slate-400">Total</span><span className="text-2xl font-semibold tabular-nums tracking-tight text-slate-300">{money(0)}</span></div>
+              <Button className="h-12 w-full text-base" disabled>Charge</Button>
+            </div>
+          )}
         </aside>
       </div>
 
